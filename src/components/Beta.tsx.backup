@@ -1,0 +1,622 @@
+import { useMemo } from 'react'
+import { useAppStore } from '../store/useAppStore'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
+
+export const Beta = () => {
+  const { accountsData } = useAppStore()
+
+  // Calculate comprehensive analytics from real data
+  const analytics = useMemo(() => {
+    const allClosedPnL = accountsData.flatMap(account => account.closedPnL || [])
+    const allTrades = accountsData.flatMap(account => account.trades || [])
+    const hasConnectedAccounts = accountsData.length > 0
+    const hasActiveTrading = allTrades.length > 0
+
+    console.log('Beta Analytics Debug:', {
+      accountsDataLength: accountsData.length,
+      allClosedPnLLength: allClosedPnL.length,
+      allTradesLength: allTrades.length,
+      accountBreakdown: accountsData.map(acc => ({
+        name: acc.name,
+        closedPnLCount: acc.closedPnL?.length || 0,
+        tradesCount: acc.trades?.length || 0,
+        hasError: !!acc.error,
+        error: acc.error
+      }))
+if (allClosedPnL.length === 0) {      return {        symbolDominance: [],        rollingPnL: [],        streakData: { currentStreak: 0, longestWin: 0, longestLoss: 0, streaks: [] },        timePerformance: { daily: [], hourly: [] },        monthlyData: [],        equityMilestones: [],        healthScore: 0,        correlationData: [],        drawdownData: [],        assetAllocation: [],        topPerformingAssets: [],        advancedStats: {          totalRealizedPnL: 0,          totalTrades: 0,          winRate: 0,          avgWin: 0,          avgLoss: 0,          profitFactor: 0,          sharpeRatio: 0,          maxDrawdown: 0,          maxProfit: 0,        },        isEmpty: true,        hasConnectedAccounts,        hasActiveTrading,        availableTradeCount: allTrades.length      }    }
+        hasConnectedAccounts,
+        hasActiveTrading,
+        availableTradeCount: allTrades.length
+      }
+    }
+
+    // Symbol Dominance Analysis
+    const symbolPnL = allClosedPnL.reduce((acc, trade) => {
+      const symbol = trade.symbol
+      const pnl = parseFloat(trade.closedPnl)
+      acc[symbol] = (acc[symbol] || 0) + pnl
+      return acc
+    }, {} as Record<string, number>)
+
+    const totalPnL = Object.values(symbolPnL).reduce((sum, pnl) => sum + Math.abs(pnl), 0)
+    const symbolDominance = Object.entries(symbolPnL)
+      .map(([symbol, pnl]) => ({
+        symbol: symbol.replace('USDT', ''),
+        pnl,
+        percentage: totalPnL > 0 ? (Math.abs(pnl) / totalPnL) * 100 : 0,
+        color: pnl >= 0 ? '#10b981' : '#ef4444'
+      }))
+      .sort((a, b) => Math.abs(b.pnl) - Math.abs(a.pnl))
+      .slice(0, 10)
+
+    // Rolling P&L Heatmap Data
+    const dailyPnL = allClosedPnL.reduce((acc, trade) => {
+      const date = new Date(parseInt(trade.updatedTime)).toISOString().split('T')[0]
+      acc[date] = (acc[date] || 0) + parseFloat(trade.closedPnl)
+      return acc
+    }, {} as Record<string, number>)
+
+    const rollingPnL = Object.entries(dailyPnL)
+      .map(([date, pnl]) => ({ date, pnl }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-30) // Last 30 days
+
+    // Win/Loss Streak Analysis
+    const sortedTrades = allClosedPnL
+      .sort((a, b) => parseInt(a.updatedTime) - parseInt(b.updatedTime))
+      .map(trade => parseFloat(trade.closedPnl) > 0)
+
+    let currentStreak = 0
+    let longestWin = 0
+    let longestLoss = 0
+    let streaks = []
+    let currentStreakType = null
+    let currentStreakLength = 0
+
+    for (let i = 0; i < sortedTrades.length; i++) {
+      const isWin = sortedTrades[i]
+
+      if (currentStreakType === null || currentStreakType === isWin) {
+        currentStreakLength++
+        currentStreakType = isWin
+      } else {
+        streaks.push({ type: currentStreakType ? 'win' : 'loss', length: currentStreakLength })
+        if (currentStreakType) longestWin = Math.max(longestWin, currentStreakLength)
+        else longestLoss = Math.max(longestLoss, currentStreakLength)
+
+        currentStreakType = isWin
+        currentStreakLength = 1
+      }
+    }
+
+    if (currentStreakLength > 0) {
+      currentStreak = currentStreakType ? currentStreakLength : -currentStreakLength
+      if (currentStreakType) longestWin = Math.max(longestWin, currentStreakLength)
+      else longestLoss = Math.max(longestLoss, currentStreakLength)
+    }
+
+    // Day/Hour Performance Analysis
+    const dayPerformance = new Array(7).fill(0).map((_, i) => ({ day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i], pnl: 0, trades: 0 }))
+    const hourPerformance = new Array(24).fill(0).map((_, i) => ({ hour: i, pnl: 0, trades: 0 }))
+
+    allClosedPnL.forEach(trade => {
+      const date = new Date(parseInt(trade.updatedTime))
+      const dayOfWeek = date.getDay()
+      const hour = date.getHours()
+      const pnl = parseFloat(trade.closedPnl)
+
+      dayPerformance[dayOfWeek].pnl += pnl
+      dayPerformance[dayOfWeek].trades++
+      hourPerformance[hour].pnl += pnl
+      hourPerformance[hour].trades++
+    })
+
+    // Monthly Summary
+    const monthlyData = allClosedPnL.reduce((acc, trade) => {
+      const date = new Date(parseInt(trade.updatedTime))
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
+      if (!acc[monthKey]) {
+        acc[monthKey] = { month: monthKey, pnl: 0, trades: 0, wins: 0, volume: 0, largestWin: 0, largestLoss: 0 }
+      }
+
+      const pnl = parseFloat(trade.closedPnl)
+      acc[monthKey].pnl += pnl
+      acc[monthKey].trades++
+      acc[monthKey].volume += parseFloat(trade.cumEntryValue)
+      if (pnl > 0) {
+        acc[monthKey].wins++
+        acc[monthKey].largestWin = Math.max(acc[monthKey].largestWin, pnl)
+      } else {
+        acc[monthKey].largestLoss = Math.min(acc[monthKey].largestLoss, pnl)
+      }
+
+      return acc
+    }, {} as Record<string, any>)
+
+    const monthlyArray = Object.values(monthlyData).slice(-6)
+
+    // Top 5 Performing Assets
+    const topPerformingAssets = symbolDominance
+      .filter(asset => asset.pnl > 0)
+      .slice(0, 5)
+      .map(asset => ({
+        ...asset,
+        roi: asset.pnl > 0 ? ((asset.pnl / Math.abs(asset.pnl)) * 100) : 0
+      }))
+
+    // Advanced Statistics
+    const totalRealizedPnL = allClosedPnL.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0)
+    const totalTrades = allClosedPnL.length
+    const winningTrades = allClosedPnL.filter(t => parseFloat(t.closedPnl) > 0)
+    const losingTrades = allClosedPnL.filter(t => parseFloat(t.closedPnl) < 0)
+    const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / winningTrades.length : 0
+    const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / losingTrades.length) : 0
+    const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0
+    const sharpeRatio = totalTrades > 1 ? totalRealizedPnL / Math.sqrt(totalTrades) : 0
+    const maxDrawdown = Math.min(...rollingPnL.map(d => d.pnl))
+    const maxProfit = Math.max(...rollingPnL.map(d => d.pnl))
+
+    // Account Health Score
+    const totalEquity = accountsData.reduce((sum, acc) => sum + parseFloat(acc.balance?.totalEquity || '0'), 0)
+    const totalUnrealizedPnL = accountsData.reduce((sum, acc) => sum + parseFloat(acc.balance?.totalPerpUPL || '0'), 0)
+    const winRate = allClosedPnL.length > 0 ? (allClosedPnL.filter(t => parseFloat(t.closedPnl) > 0).length / allClosedPnL.length) * 100 : 0
+    const avgPnL = allClosedPnL.length > 0 ? allClosedPnL.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / allClosedPnL.length : 0
+
+    let healthScore = 50 // Base score
+    if (winRate > 50) healthScore += 20
+    if (avgPnL > 0) healthScore += 15
+    if (totalUnrealizedPnL > totalEquity * -0.05) healthScore += 10 // Less than 5% unrealized loss
+    if (symbolDominance.length > 3) healthScore += 5 // Diversification
+    healthScore = Math.min(100, Math.max(0, healthScore))
+
+    // Asset Allocation
+    const assetAllocation = accountsData.map(account => {
+      const positions = account.positions || []
+      const totalValue = positions.reduce((sum, pos) => sum + Math.abs(parseFloat(pos.positionValue)), 0)
+
+      return {
+        name: account.name,
+        value: totalValue,
+        equity: parseFloat(account.balance?.totalEquity || '0')
+      }
+    }).filter(item => item.value > 0)
+
+    return {
+      symbolDominance,
+      rollingPnL,
+      streakData: { currentStreak, longestWin, longestLoss, streaks },
+      timePerformance: { daily: dayPerformance, hourly: hourPerformance },
+      monthlyData: monthlyArray,
+      equityMilestones: [], // Would need equity history
+      healthScore,
+      correlationData: symbolDominance.slice(0, 5), // Top 5 for correlation
+      drawdownData: rollingPnL,
+      assetAllocation,
+      topPerformingAssets,
+      advancedStats: {
+        totalRealizedPnL,
+        totalTrades,
+        winRate,
+        avgWin,
+        avgLoss,
+        profitFactor,
+        sharpeRatio,
+        maxDrawdown,
+        maxProfit,
+        longestWinStreak: longestWin,
+        longestLossStreak: longestLoss
+      }
+    }
+  }, [accountsData])
+
+  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
+
+  if (accountsData.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-center w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg">
+            <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Beta Portfolio Tools
+            </h1>
+            <p className="text-muted">
+              Advanced analytics for your trading data
+            </p>
+          </div>
+        </div>
+
+        <div className="card p-8 text-center">
+          <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            No Trading Data Available
+          </h2>
+          <p className="text-muted">
+            Connect your Bybit accounts to unlock advanced portfolio analytics and insights.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center space-x-3">
+        <div className="flex items-center justify-center w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg">
+          <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Beta Portfolio Tools
+          </h1>
+          <p className="text-muted">
+            Advanced analytics and insights from your trading data
+          </p>
+        </div>
+      </div>
+
+      {/* Data Availability Warning */}
+      {analytics.isEmpty && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center space-x-2 mb-2">
+            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Portfolio Analytics Unavailable
+            </span>
+          </div>
+          {!analytics.hasConnectedAccounts ? (
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Connect your Bybit accounts to enable portfolio analytics and insights.
+            </p>
+          ) : !analytics.hasActiveTrading ? (
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              No trading activity detected. Start trading to see portfolio analytics here.
+            </p>
+          ) : (
+            <div>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                No closed P&L data available from Bybit API. Analytics require completed trades.
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                You have <strong>{analytics.availableTradeCount} execution records</strong> but no closed positions. Portfolio tools will activate once positions are fully closed.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Account Health Score */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+          Account Health Score
+        </h2>
+        <div className="flex items-center space-x-4">
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.healthScore}/100</span>
+              <span className={`text-sm font-medium ${analytics.healthScore >= 80 ? 'text-green-600' : analytics.healthScore >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                {analytics.healthScore >= 80 ? 'Excellent' : analytics.healthScore >= 60 ? 'Good' : 'Needs Attention'}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-dark-600 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${analytics.healthScore >= 80 ? 'bg-green-500' : analytics.healthScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                style={{ width: `${analytics.healthScore}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Symbol Dominance */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+          </svg>
+          Symbol Dominance (P&L by Pair)
+        </h2>
+        {analytics.symbolDominance.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={analytics.symbolDominance}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="percentage"
+                  >
+                    {analytics.symbolDominance.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => [`${value.toFixed(1)}%`, 'Contribution']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {analytics.symbolDominance.slice(0, 6).map((item, index) => (
+                <div key={item.symbol} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-dark-700 rounded">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                    <span className="font-medium">{item.symbol}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-semibold ${item.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {item.pnl >= 0 ? '+' : ''}${item.pnl.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted">{item.percentage.toFixed(1)}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-muted">No trading data available for symbol analysis.</p>
+        )}
+      </div>
+
+      {/* Win/Loss Streak Tracker */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          Win/Loss Streak Tracker
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className={`text-2xl font-bold ${analytics.streakData.currentStreak > 0 ? 'text-green-600' : analytics.streakData.currentStreak < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+              {analytics.streakData.currentStreak > 0 ? '+' : ''}{analytics.streakData.currentStreak}
+            </div>
+            <div className="text-sm text-muted">Current Streak</div>
+          </div>
+          <div className="text-center p-4 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">+{analytics.streakData.longestWin}</div>
+            <div className="text-sm text-muted">Longest Win Streak</div>
+          </div>
+          <div className="text-center p-4 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-2xl font-bold text-red-600">-{analytics.streakData.longestLoss}</div>
+            <div className="text-sm text-muted">Longest Loss Streak</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Rolling P&L Heatmap */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Rolling P&L (Last 30 Days)
+        </h2>
+        {analytics.rollingPnL.length > 0 ? (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={analytics.rollingPnL}>
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'P&L']}
+                  labelFormatter={(label) => `Date: ${label}`}
+                />
+                <defs>
+                  <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                  </linearGradient>
+                  <linearGradient id="lossGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="pnl"
+                  stroke="#10b981"
+                  fill="url(#profitGradient)"
+                  fillOpacity={1}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="text-muted">No recent P&L data available.</p>
+        )}
+      </div>
+
+      {/* Day/Hour Performance Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Daily Performance
+          </h2>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.timePerformance.daily}>
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'P&L']} />
+                <Bar dataKey="pnl">
+                  {analytics.timePerformance.daily.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? "#10b981" : "#ef4444"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Hourly Performance</h2>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.timePerformance.hourly.filter(h => h.trades > 0)}>
+                <XAxis dataKey="hour" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'P&L']} />
+                <Bar dataKey="pnl">
+                  {analytics.timePerformance.hourly.filter(h => h.trades > 0).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? "#10b981" : "#ef4444"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Monthly Trade Summary */}
+      {analytics.monthlyData.length > 0 && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Monthly Trade Summary
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {analytics.monthlyData.slice(-6).map((month: any) => (
+              <div key={month.month} className="p-4 bg-gray-50 dark:bg-dark-700 rounded-lg">
+                <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">{month.month}</div>
+                <div className={`text-lg font-bold ${month.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {month.pnl >= 0 ? '+' : ''}${month.pnl.toFixed(2)}
+                </div>
+                <div className="text-xs text-muted mt-1">
+                  {month.trades} trades • {((month.wins / month.trades) * 100).toFixed(1)}% win rate
+                </div>
+                <div className="text-xs text-muted mt-1">
+                  Avg: ${(month.pnl / month.trades).toFixed(2)} • Best: ${month.largestWin.toFixed(2)} • Worst: ${month.largestLoss.toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Advanced Statistics Dashboard */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Advanced Trading Statistics
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className={`text-xl font-bold ${analytics.advancedStats.profitFactor >= 1.5 ? 'text-green-600' : analytics.advancedStats.profitFactor >= 1 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {analytics.advancedStats.profitFactor.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted">Profit Factor</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-xl font-bold text-green-600">
+              ${analytics.advancedStats.avgWin.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Avg Win</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-xl font-bold text-red-600">
+              ${analytics.advancedStats.avgLoss.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Avg Loss</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className={`text-xl font-bold ${analytics.advancedStats.maxDrawdown < -100 ? 'text-red-600' : 'text-yellow-600'}`}>
+              ${analytics.advancedStats.maxDrawdown.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Max Drawdown</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-xl font-bold text-green-600">
+              ${analytics.advancedStats.maxProfit.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Max Profit</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className={`text-xl font-bold ${analytics.advancedStats.sharpeRatio > 1 ? 'text-green-600' : analytics.advancedStats.sharpeRatio > 0 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {analytics.advancedStats.sharpeRatio.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted">Sharpe Ratio</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top 5 Performing Assets */}
+      {analytics.topPerformingAssets.length > 0 && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-gold-600 dark:text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
+            </svg>
+            🏆 Top 5 Performing Assets
+          </h2>
+          <div className="space-y-3">
+            {analytics.topPerformingAssets.map((asset, index) => (
+              <div key={asset.symbol} className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center space-x-3">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-white ${
+                    index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-green-500'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 dark:text-white">{asset.symbol}</div>
+                    <div className="text-xs text-muted">{asset.percentage.toFixed(1)}% of total volume</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-green-600">+${asset.pnl.toFixed(2)}</div>
+                  <div className="text-xs text-green-500">Profitable</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Asset Allocation */}
+      {analytics.assetAllocation.length > 0 && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+            </svg>
+            Asset Allocation by Account
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {analytics.assetAllocation.map((account) => (
+              <div key={account.name} className="p-4 bg-gray-50 dark:bg-dark-700 rounded-lg">
+                <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">{account.name}</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">${account.equity.toFixed(2)}</div>
+                <div className="text-xs text-muted">Position Value: ${account.value.toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
