@@ -86,10 +86,5 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
-    "publish": {
-      "provider": "github",
-      "owner": "your-username",
-      "repo": "bybit-dashboard"
-    }
   }
 }
