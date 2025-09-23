@@ -67,7 +67,7 @@ A modern, open-source Windows desktop application for monitoring and analyzing m
 ### Quick Install (Recommended)
 
 1. **Download the installer**:
-   - Go to the [Releases](https://github.com/your-username/bybit-dashboard/releases) page
+   - Go to the [Releases](https://github.com/fishyink/Dashboard/releases) page
    - Download the latest `Bybit-Dashboard-Setup-1.0.0.exe`
 
 2. **Run the installer**:
