@@ -3,6 +3,7 @@
   "version": "1.3.1",
   "description": "The People's Dashboard – Bringing the Daviddtech community together",
   "main": "dist/main.js",
+  "type": "module",
   "homepage": "https://github.com/your-username/bybit-dashboard",
   "author": "Your Name",
   "license": "MIT",
