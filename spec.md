@@ -151,16 +151,13 @@ npm run dev
 - Dev server finds available ports automatically (8080, 8081, 8082, 8083, 8084...)
 - Electron connects to the dev server URL shown in console
 
-#### Recent Version Changes (v1.2.8):
-- ✅ **Fixed equity curve date distribution algorithm** - Now properly shows full 180-day timeline (Mar 25 - Sep 21) instead of concentrated dates
-- ✅ **Optimized equity curve performance** - 70% faster generation with intelligent caching system
-- ✅ **Added Clear Cache functionality** - "Clear Cache" button in Diagnostics page to regenerate equity curves with new algorithm
-- ✅ Made individual account equity curves taller (doubled height from h-16 to h-32)
-- ✅ Beta page shows ALL trading pairs with green/red color coding (removed .slice() limits)
-- ✅ Enhanced Monthly Trade Summary cards with gradients, percentages, and top 5 performing pairs
-- ✅ Fixed app version display to show 1.2.8 instead of Electron version
-- ✅ Implemented smart data persistence and equity history caching
-- ✅ Fast page switching between Dashboard ↔ Beta with cached data
+#### Recent Version Changes (v1.3.1):
+- ✅ **GitHub Actions CI/CD Setup** - Automated Windows + Mac builds via GitHub Actions
+- ✅ **Cross-Platform Mac Support** - Universal builds for Intel (x64) and Apple Silicon (arm64) Macs
+- ✅ **DMG + ZIP Distribution** - Mac builds include both installer (.dmg) and portable (.zip) formats
+- ✅ **Fixed PostCSS Configuration** - Resolved module type conflicts for proper build execution
+- ✅ **Disabled Auto-Publishing** - Added `--publish=never` flag to prevent GitHub token permission errors
+- ✅ **JSON Syntax Fixes** - Corrected package.json formatting for reliable CI/CD builds
 
 #### Performance Optimizations (v1.2.8):
 The equity curve generation has been significantly optimized:
@@ -178,7 +175,49 @@ The equity curve generation has been significantly optimized:
 - ✅ Enhanced monthly summary cards with gradients and percentages
 - ✅ Version 1.2.8 displayed correctly in sidebar
 
-#### Troubleshooting:
+## Cross-Platform Building
+
+### Building for Mac (via GitHub Actions)
+
+**Automated Mac builds are available through GitHub Actions CI/CD:**
+
+#### Setup Instructions:
+1. **Push to GitHub**: Ensure your code is in a GitHub repository
+2. **GitHub Actions Workflow**: `.github/workflows/build.yml` is pre-configured for multi-platform builds
+3. **Trigger Build**: Push to main branch or manually trigger via Actions tab
+
+#### Build Artifacts:
+GitHub Actions automatically creates Mac builds:
+- **Intel Mac**: `Trading Dashboard-1.3.1.dmg` and `Trading Dashboard-1.3.1-mac.zip`
+- **Apple Silicon**: `Trading Dashboard-1.3.1-arm64.dmg` and `Trading Dashboard-1.3.1-arm64-mac.zip`
+
+#### Download Mac Build:
+1. Go to **GitHub Actions** tab in your repository
+2. Click on the latest successful **"Build and Release"** workflow
+3. Scroll to **Artifacts** section at bottom
+4. Download **"mac-build"** artifact
+5. Extract and share `.dmg` or `.zip` files with Mac users
+
+#### Local Mac Building:
+If you have access to a Mac machine:
+```bash
+git clone <your-repo-url>
+cd "Dashboard"
+npm install
+npm run build:mac
+```
+
+#### Repository Privacy:
+- **Private Repository**: Only you can download artifacts from GitHub Actions
+- **Public Repository**: Anyone can access artifacts from successful builds
+- **Distribution**: Download artifacts yourself and share files directly for private repos
+
+#### Troubleshooting Mac Builds:
+- **Code Signing**: Mac builds are unsigned (users may see security warnings)
+- **Gatekeeper**: Mac users may need to right-click > Open for first launch
+- **Architecture**: Provide both Intel and ARM64 builds for compatibility
+
+#### Troubleshooting Development:
 - If ports are busy, Vite will auto-select the next available port
 - If Electron window doesn't appear, check console for errors
 - Multiple dev processes may run in background - check Task Manager if needed
