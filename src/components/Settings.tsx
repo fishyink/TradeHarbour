@@ -231,11 +231,11 @@ export const Settings = () => {
               </span>
             </div>
             <p className="text-xs text-purple-700 dark:text-purple-300">
-              Hit me up on Discord over at the <span className="font-medium">Daviddtech community</span> to report bugs or request features!
+              Hit me up on Discord over at the <a href="https://discord.gg/daviddtech" target="_blank" rel="noopener noreferrer" className="font-medium text-purple-600 dark:text-purple-400 hover:underline">Daviddtech community</a> to report bugs or request features!
             </p>
             <div className="mt-3 space-y-1 text-xs">
               <div className="text-purple-600 dark:text-purple-400">
-                Discord: <span className="font-medium">@fishyinking</span>
+                Discord: <span className="font-medium">@fishyink</span>
               </div>
               <div className="text-purple-600 dark:text-purple-400">
                 Website: <a

@@ -116,9 +116,9 @@ Trade Harbour is for informational purposes only. Always verify data independent
 
 ## 🤝 Connect & Support
 
-Hit me up on Discord over at the Daviddtech community to report bugs or request features!
+Hit me up on Discord over at the [Daviddtech community](https://discord.gg/daviddtech) to report bugs or request features!
 
-**Discord**: @fishyinking
+**Discord**: @fishyink
 **Website**: daviddtech.com
 
 ---
