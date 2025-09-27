@@ -114,6 +114,15 @@ Trade Harbour is for informational purposes only. Always verify data independent
 
 ---
 
+## 🤝 Connect & Support
+
+Hit me up on Discord over at the Daviddtech community to report bugs or request features!
+
+**Discord**: @fishyinking
+**Website**: daviddtech.com
+
+---
+
 <div align="center">
 
 **⚓ Trade Harbour ⚓**
