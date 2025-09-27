@@ -20,13 +20,9 @@
     "build:win": "npm run build && electron-builder --win --publish=never",
     "build:mac": "npm run build && electron-builder --mac --publish=never",
     "dist": "npm run build && electron-builder",
-    "postinstall": "electron-builder install-app-deps",
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui"
+    "postinstall": "electron-builder install-app-deps"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.0",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",

@@ -77,3 +77,7 @@ storage/
 localStorage/
 cache/
 cached-data/
+
+# API Keys and sensitive files
+*read only*.txt
+bybit*.txt
