@@ -1,4 +1,5 @@
 import { useAppStore } from '../store/useAppStore'
+import packageInfo from '../../package.json'
 
 interface HeaderProps {
   currentPage: string
@@ -32,17 +33,21 @@ export const Header = ({ currentPage, onPageChange }: HeaderProps) => {
     <header className="bg-white dark:bg-dark-900 border-b border-gray-200 dark:border-dark-700 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Trading Dashboard
-            </h1>
-            <p className="text-sm text-muted">The People's Dashboard – Bringing the Daviddtech community together</p>
+          <div className="flex items-center space-x-3">
+            <div className="text-2xl">⚓</div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Trade Harbor
+              </h1>
+              <p className="text-sm text-muted">One harbor, one dashboard, all your trades.</p>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="text-sm text-muted">
-            Last updated: {formatLastRefresh()}
+          <div className="text-xs text-muted">
+            <div>v{packageInfo.version}</div>
+            <div>Last updated: {formatLastRefresh()}</div>
           </div>
 
           <button

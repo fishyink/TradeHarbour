@@ -1,13 +1,13 @@
 {
-  "name": "trading-dashboard",
+  "name": "trade-harbor",
   "version": "1.3.1",
-  "description": "The People's Dashboard – Bringing the Daviddtech community together",
+  "description": "Trade Harbor - One harbor, one dashboard, all your trades. A unified trading command center for cryptocurrency exchanges.",
   "main": "dist/main.js",
-  "homepage": "https://github.com/your-username/bybit-dashboard",
-  "author": "Your Name",
+  "homepage": "https://github.com/fishyink/Dashboard",
+  "author": "fishyink",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/bybit-dashboard.git"
+    "url": "https://github.com/fishyink/Dashboard.git"
   },
   "license": "MIT",
   "scripts": {
@@ -53,8 +53,8 @@
     "zustand": "^4.5.7"
   },
   "build": {
-    "appId": "com.tradingdashboard.app",
-    "productName": "Trading Dashboard",
+    "appId": "com.tradeharbor.app",
+    "productName": "Trade Harbor",
     "asar": false,
     "directories": {
       "output": "release"

@@ -8,6 +8,7 @@ import { LoadingProgress } from './LoadingProgress'
 import { getTotalEquity, getTotalPnL } from '../store/useAppStore'
 import { exportTradesToCSV, exportPositionsToCSV, exportEquityHistoryToCSV } from '../utils/csvExport'
 import { bybitAPI } from '../services/bybit'
+import packageInfo from '../../package.json'
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Area, AreaChart } from 'recharts'
 
 interface DashboardProps {
@@ -931,6 +932,26 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           Open Positions ({allPositions.length})
         </h2>
         <PositionsTable positions={allPositions} />
+      </div>
+
+      {/* Trade Harbor Footer */}
+      <div className="mt-8 text-center py-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-center space-x-2 text-sm text-muted mb-2">
+          <span>⚓</span>
+          <span>Trade Harbor v{packageInfo.version}</span>
+          <span>•</span>
+          <a
+            href="https://github.com/fishyink/Dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-primary transition-colors"
+          >
+            GitHub Repository
+          </a>
+        </div>
+        <p className="text-xs text-muted">
+          One harbor, one dashboard, all your trades.
+        </p>
       </div>
     </div>
   )
