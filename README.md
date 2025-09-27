@@ -119,7 +119,7 @@ Trade Harbour is for informational purposes only. Always verify data independent
 Hit me up on Discord over at the [Daviddtech community](https://discord.gg/daviddtech) to report bugs or request features!
 
 **Discord**: @fishyink
-**Website**: daviddtech.com
+**Daviddtech Community**: [Join Discord](https://discord.gg/daviddtech)
 
 ---
 

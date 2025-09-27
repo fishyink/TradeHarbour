@@ -238,13 +238,13 @@ export const Settings = () => {
                 Discord: <span className="font-medium">@fishyink</span>
               </div>
               <div className="text-purple-600 dark:text-purple-400">
-                Website: <a
-                  href="https://daviddtech.com"
+                Daviddtech Community: <a
+                  href="https://discord.gg/daviddtech"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium hover:underline text-purple-700 dark:text-purple-300"
                 >
-                  daviddtech.com
+                  Join Discord
                 </a>
               </div>
             </div>

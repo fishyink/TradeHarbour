@@ -91,6 +91,9 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
       for (const account of accounts) {
         await bybitAPI.fetchCompleteHistoricalData(account)
       }
+      // Refresh data to show newly loaded historical data
+      const { refreshData } = useAppStore.getState()
+      await refreshData()
     } catch (error) {
       console.error('Error loading historical data:', error)
     } finally {
