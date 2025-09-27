@@ -11,7 +11,7 @@ Clean, modern UI for all users.
 - Tagline: The People’s Dashboard – Bringing the Daviddtech community together.
 
 ## Platforms
-- Windows packaged EXE (Electron)
+- Cross-platform desktop (Electron)
 
 ## Data sources
 - Bybit REST API (USDTP products only) - **NO DUMMY DATA**
@@ -55,12 +55,11 @@ Clean, modern UI for all users.
 - Include project tagline prominently in UI header or splash screen
 
 ## Technical stack
-- Electron for packaging into Windows EXE
+- Electron for cross-platform desktop app
 - React + TypeScript + Tailwind
 - Charts: Recharts (or equivalent lightweight library)
-- Local AES encryption for API key storage (consider optional integration with OS keyring later)
-- Electron builder for distribution
-- Auto-update via `electron-updater` + GitHub Releases
+- Local AES encryption for API key storage
+- Electron builder for packaging
 
 ## Security
 - Store API secrets encrypted at rest
@@ -75,15 +74,11 @@ Clean, modern UI for all users.
 ## Distribution & Releases
 - Open-source (MIT) on GitHub
 - Semantic versioning
-- Publish Windows EXE installer via GitHub Releases
-- Implement in-app update check using `electron-updater` (GitHub Releases) with manual-download fallback
-- Provide simple upgrade instructions in README
-- Consider code-signing the EXE later to avoid SmartScreen warnings
+- Source code distribution via GitHub
 
 ## Deliverables
 1. Complete codebase (Electron + React + Tailwind) with above MVP features
-2. Windows EXE build + installer
-3. README: installation, adding API keys, exporting data, update process
+2. README: installation, adding API keys, exporting data
 
 
 ## Beta Portfolio Tools (Advanced Analytics)

@@ -16,11 +16,7 @@
     "dev:renderer": "vite",
     "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
-    "build:renderer": "tsc && vite build",
-    "build:win": "npm run build && electron-builder --win --publish=never",
-    "build:mac": "npm run build && electron-builder --mac --publish=never",
-    "dist": "npm run build && electron-builder",
-    "postinstall": "electron-builder install-app-deps"
+    "build:renderer": "tsc && vite build"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
@@ -31,7 +27,6 @@
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.2",
     "electron": "^28.2.0",
-    "electron-builder": "^24.9.1",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
@@ -47,52 +42,5 @@
     "react-dom": "^18.2.0",
     "recharts": "^2.10.4",
     "zustand": "^4.5.7"
-  },
-  "build": {
-    "appId": "com.tradeharbour.app",
-    "productName": "Trade Harbour",
-    "asar": false,
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "node_modules/**/*"
-    ],
-    "extraFiles": [
-      {
-        "from": "dist/renderer",
-        "to": "renderer",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "target": "portable"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "category": "public.app-category.finance"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
   }
 }
