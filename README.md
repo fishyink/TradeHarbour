@@ -95,12 +95,7 @@ Trade Harbour is your **unified trading command center** – bringing all your c
 
 ### 🎮 First Launch
 
-**Option 1: Demo Mode** (Recommended)
-- Click "Demo Mode" to explore features with sample data
-- Perfect for understanding Trade Harbour's capabilities
-- No API keys required
-
-**Option 2: Connect Your Accounts**
+**Connect Your Accounts**
 - Navigate to "Accounts" in the sidebar
 - Add your exchange API keys (read-only recommended)
 - Start monitoring your real trading data
@@ -182,7 +177,6 @@ npm run dev          # Development mode with hot reload
 npm run build        # Production build
 npm run build:win    # Windows executable
 npm run build:mac    # macOS application
-npm test             # Run test suite
 ```
 
 ### Contributing
@@ -220,7 +214,6 @@ npm test             # Run test suite
 **Performance Issues**
 - Reduce auto-refresh frequency in Settings
 - Close resource-intensive applications
-- Try demo mode to isolate issues
 - Clear application data and restart
 
 **Custom Cards Not Rendering**
