@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
+import packageInfo from '../../package.json'
 
 export const Settings = () => {
   const { settings, updateSettings, accounts } = useAppStore()
-  const [version, setVersion] = useState('')
+  const [version, setVersion] = useState(packageInfo.version)
 
   useEffect(() => {
     if (window.electronAPI) {
@@ -195,7 +196,7 @@ export const Settings = () => {
           <div className="space-y-2 text-sm text-muted">
             <div className="flex justify-between">
               <span>Version:</span>
-              <span>{version || '1.0.0'}</span>
+              <span>{version || packageInfo.version}</span>
             </div>
             <div className="flex justify-between">
               <span>License:</span>

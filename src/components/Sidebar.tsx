@@ -1,5 +1,6 @@
 import { useAppStore } from '../store/useAppStore'
 import { useEffect, useState } from 'react'
+import packageInfo from '../../package.json'
 
 interface SidebarProps {
   currentPage: string
@@ -8,7 +9,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
   const { accounts, accountsData, customCards } = useAppStore()
-  const [version, setVersion] = useState('1.2.8')
+  const [version, setVersion] = useState(packageInfo.version)
   const [customCardsExpanded, setCustomCardsExpanded] = useState(currentPage === 'custom-dashboard' || currentPage === 'custom-cards')
 
   useEffect(() => {
