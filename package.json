@@ -3,11 +3,11 @@
   "version": "1.3.1",
   "description": "Trade Harbor - One harbor, one dashboard, all your trades. A unified trading command center for cryptocurrency exchanges.",
   "main": "dist/main.js",
-  "homepage": "https://github.com/fishyink/Dashboard",
+  "homepage": "https://github.com/fishyink/tradeharbor",
   "author": "fishyink",
   "repository": {
     "type": "git",
-    "url": "https://github.com/fishyink/Dashboard.git"
+    "url": "https://github.com/fishyink/tradeharbor.git"
   },
   "license": "MIT",
   "scripts": {

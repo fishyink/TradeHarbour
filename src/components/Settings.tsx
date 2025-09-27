@@ -196,7 +196,7 @@ export const Settings = () => {
           <div className="space-y-2 text-sm text-muted">
             <div className="flex justify-between">
               <span>Version:</span>
-              <span>{version || packageInfo.version}</span>
+              <span>{packageInfo.version}</span>
             </div>
             <div className="flex justify-between">
               <span>License:</span>

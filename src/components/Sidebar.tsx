@@ -1,6 +1,5 @@
 import { useAppStore } from '../store/useAppStore'
 import { useEffect, useState } from 'react'
-import packageInfo from '../../package.json'
 
 interface SidebarProps {
   currentPage: string
@@ -9,21 +8,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
   const { accounts, accountsData, customCards } = useAppStore()
-  const [version, setVersion] = useState(packageInfo.version)
   const [customCardsExpanded, setCustomCardsExpanded] = useState(currentPage === 'custom-dashboard' || currentPage === 'custom-cards')
-
-  useEffect(() => {
-    const getVersion = async () => {
-      try {
-        // @ts-ignore - window.electronAPI is available in Electron environment
-        const appVersion = await window.electronAPI.app.getVersion()
-        setVersion(appVersion)
-      } catch (error) {
-        console.log('Running in browser mode, using default version 1.2.7')
-      }
-    }
-    getVersion()
-  }, [])
 
   // Auto-expand Custom Cards submenu when on custom dashboard or custom cards pages
   useEffect(() => {
@@ -276,12 +261,6 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
       </nav>
 
 
-      {/* Version Number */}
-      <div className="px-4 pb-4">
-        <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-          v{version}
-        </div>
-      </div>
     </aside>
   )
 }

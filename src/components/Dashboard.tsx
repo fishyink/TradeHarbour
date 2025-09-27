@@ -941,7 +941,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           <span>Trade Harbor v{packageInfo.version}</span>
           <span>•</span>
           <a
-            href="https://github.com/fishyink/Dashboard"
+            href="https://github.com/fishyink/tradeharbor"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-primary transition-colors"

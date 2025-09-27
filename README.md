@@ -6,7 +6,7 @@ A modern, open-source desktop application for monitoring and analyzing multiple 
 ![Trade Harbor](https://img.shields.io/badge/Trade%20Harbor-v1.3.1-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
-![GitHub](https://img.shields.io/badge/GitHub-fishyink%2FDashboard-black.svg)
+![GitHub](https://img.shields.io/badge/GitHub-fishyink%2Ftradeharbor-black.svg)
 
 ---
 
@@ -72,8 +72,8 @@ Trade Harbor is your **unified trading command center** – bringing all your cr
 
 1. **Clone Trade Harbor**
    ```bash
-   git clone https://github.com/fishyink/Dashboard.git
-   cd Dashboard
+   git clone https://github.com/fishyink/tradeharbor.git
+   cd tradeharbor
    ```
 
 2. **Install Dependencies**
@@ -203,7 +203,7 @@ npm test             # Run test suite
 | **OKX** | 🚧 Planned | Integration roadmap |
 | **Coinbase** | 🚧 Planned | API research phase |
 
-*Want to add your exchange? [Open an issue](https://github.com/fishyink/Dashboard/issues) or contribute!*
+*Want to add your exchange? [Open an issue](https://github.com/fishyink/tradeharbor/issues) or contribute!*
 
 ---
 
@@ -230,8 +230,8 @@ npm test             # Run test suite
 - Try the Portfolio Overview template first
 
 ### Getting Help
-- **GitHub Issues**: [Report bugs and feature requests](https://github.com/fishyink/Dashboard/issues)
-- **Discussions**: [Community support and ideas](https://github.com/fishyink/Dashboard/discussions)
+- **GitHub Issues**: [Report bugs and feature requests](https://github.com/fishyink/tradeharbor/issues)
+- **Discussions**: [Community support and ideas](https://github.com/fishyink/tradeharbor/discussions)
 - **Documentation**: Check this README for detailed instructions
 
 ---
@@ -280,7 +280,7 @@ Trade Harbor is for informational and analysis purposes only. Always verify data
 
 *One harbor, one dashboard, all your trades.*
 
-**[🌟 Star on GitHub](https://github.com/fishyink/Dashboard)** • **[📥 Download Latest](https://github.com/fishyink/Dashboard/releases)** • **[🐛 Report Issues](https://github.com/fishyink/Dashboard/issues)**
+**[🌟 Star on GitHub](https://github.com/fishyink/tradeharbor)** • **[📥 Download Latest](https://github.com/fishyink/tradeharbor/releases)** • **[🐛 Report Issues](https://github.com/fishyink/tradeharbor/issues)**
 
 *Built with ❤️ for the cryptocurrency trading community*
 
