@@ -70,8 +70,9 @@ export const MonthlyTradeSummary = () => {
         .sort((a, b) => b.pnl - a.pnl)
         .slice(0, 5)
 
-      // Calculate percentage gain (simplified calculation)
-      const percentageGain = month.pnl > 0 ? (month.pnl / 1000) * 100 : (month.pnl / 1000) * 100
+      // Calculate percentage gain based on average position size
+      const avgPositionSize = month.trades > 0 ? Math.abs(month.pnl) / month.trades * 10 : 1000 // Fallback to 1000 if no trades
+      const percentageGain = avgPositionSize > 0 ? (month.pnl / avgPositionSize) * 100 : 0
 
       return {
         ...month,

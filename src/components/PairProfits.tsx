@@ -1,11 +1,26 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { AccountData } from '../types/bybit'
 
 interface PairProfitsProps {
   account: AccountData
 }
 
+type SortField = 'symbol' | 'profit7d' | 'profit30d' | 'profit90d' | 'winRate'
+type SortDirection = 'asc' | 'desc'
+
 export const PairProfits = ({ account }: PairProfitsProps) => {
+  const [sortField, setSortField] = useState<SortField>('profit90d')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
   const pairProfits = useMemo(() => {
     if (!account.closedPnL || account.closedPnL.length === 0) return []
 
@@ -63,15 +78,51 @@ export const PairProfits = ({ account }: PairProfitsProps) => {
         winRate: completedTrades > 0 ? (winningTrades / completedTrades) * 100 : 0
       }
     }).filter(pair => pair.completedTrades > 0) // Only show pairs with completed trades
-      .sort((a, b) => Math.abs(b.profit90d) - Math.abs(a.profit90d)) // Sort by absolute profit/loss
-  }, [account.closedPnL])
+      .sort((a, b) => {
+        let aValue, bValue
+
+        switch (sortField) {
+          case 'symbol':
+            aValue = a.symbol
+            bValue = b.symbol
+            break
+          case 'profit7d':
+            aValue = a.profit7d
+            bValue = b.profit7d
+            break
+          case 'profit30d':
+            aValue = a.profit30d
+            bValue = b.profit30d
+            break
+          case 'profit90d':
+            aValue = a.profit90d
+            bValue = b.profit90d
+            break
+          case 'winRate':
+            aValue = a.winRate
+            bValue = b.winRate
+            break
+          default:
+            aValue = a.profit90d
+            bValue = b.profit90d
+        }
+
+        if (sortField === 'symbol') {
+          return sortDirection === 'asc'
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue)
+        } else {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
+        }
+      })
+  }, [account.closedPnL, sortField, sortDirection])
 
   const formatCurrency = (value: number) => {
     const abs = Math.abs(value)
     if (abs >= 1000) {
-      return `${value >= 0 ? '+' : '-'}$${(abs / 1000).toFixed(1)}k`
+      return `$${(abs / 1000).toFixed(2)}k`
     }
-    return `${value >= 0 ? '+' : ''}$${value.toFixed(1)}`
+    return `$${abs.toFixed(2)}`
   }
 
   const getProfitColor = (profit: number) => {
@@ -158,14 +209,63 @@ export const PairProfits = ({ account }: PairProfitsProps) => {
     )
   }
 
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-3 h-3 ml-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      )
+    }
+    return sortDirection === 'asc' ? (
+      <svg className="w-3 h-3 ml-1 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-3 h-3 ml-1 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    )
+  }
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-5 gap-2 text-xs font-semibold text-muted border-b border-gray-200 dark:border-dark-600 pb-3">
-        <div className="pl-1">Trading Pair</div>
-        <div className="text-center">7D</div>
-        <div className="text-center">30D</div>
-        <div className="text-center">90D</div>
-        <div className="text-center">Win Rate</div>
+        <button
+          onClick={() => handleSort('symbol')}
+          className="pl-1 text-left hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center"
+        >
+          Trading Pair
+          {getSortIcon('symbol')}
+        </button>
+        <button
+          onClick={() => handleSort('profit7d')}
+          className="text-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center"
+        >
+          7D
+          {getSortIcon('profit7d')}
+        </button>
+        <button
+          onClick={() => handleSort('profit30d')}
+          className="text-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center"
+        >
+          30D
+          {getSortIcon('profit30d')}
+        </button>
+        <button
+          onClick={() => handleSort('profit90d')}
+          className="text-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center"
+        >
+          90D
+          {getSortIcon('profit90d')}
+        </button>
+        <button
+          onClick={() => handleSort('winRate')}
+          className="text-center hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center"
+        >
+          Win Rate
+          {getSortIcon('winRate')}
+        </button>
       </div>
 
       <div className="max-h-80 overflow-y-auto">
@@ -195,11 +295,6 @@ export const PairProfits = ({ account }: PairProfitsProps) => {
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="text-xs text-muted pt-2 border-t border-gray-200 dark:border-dark-600">
-        <p>• Profits from actual closed positions (matches Bybit P&L Analysis)</p>
-        <p>• Win rate shows closed position count in parentheses</p>
       </div>
     </div>
   )

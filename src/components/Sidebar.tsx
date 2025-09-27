@@ -7,9 +7,9 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
-  const { accounts, accountsData } = useAppStore()
+  const { accounts, accountsData, customCards } = useAppStore()
   const [version, setVersion] = useState('1.2.8')
-  const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
+  const [customCardsExpanded, setCustomCardsExpanded] = useState(currentPage === 'custom-dashboard' || currentPage === 'custom-cards')
 
   useEffect(() => {
     const getVersion = async () => {
@@ -23,6 +23,13 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
     }
     getVersion()
   }, [])
+
+  // Auto-expand Custom Cards submenu when on custom dashboard or custom cards pages
+  useEffect(() => {
+    if (currentPage === 'custom-dashboard' || currentPage === 'custom-cards') {
+      setCustomCardsExpanded(true)
+    }
+  }, [currentPage])
 
   const menuItems = [
     {
@@ -59,6 +66,20 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
         </svg>
       ),
       badge: accounts.length,
+    },
+    {
+      id: 'trade-history',
+      label: 'Trade History',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      ),
     },
     {
       id: 'beta',
@@ -103,6 +124,21 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
       ),
     },
     {
+      id: 'custom-cards',
+      label: 'Custom Cards',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+          />
+        </svg>
+      ),
+      hasSubmenu: true,
+    },
+    {
       id: 'settings',
       label: 'Settings',
       icon: (
@@ -130,22 +166,77 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.id}>
-              <button
-                onClick={() => onPageChange(item.id)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors duration-200 ${
-                  currentPage === item.id
-                    ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800'
-                }`}
-              >
-                {item.icon}
-                <span className="font-medium">{item.label}</span>
-                {item.badge !== undefined && (
-                  <span className="ml-auto bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-full px-2 py-1 text-xs font-medium">
-                    {item.badge}
-                  </span>
-                )}
-              </button>
+              {item.hasSubmenu ? (
+                <div>
+                  <button
+                    onClick={() => {
+                      if (item.id === 'custom-cards') {
+                        setCustomCardsExpanded(!customCardsExpanded)
+                        onPageChange(item.id)
+                      } else {
+                        onPageChange(item.id)
+                      }
+                    }}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors duration-200 ${
+                      currentPage === item.id || currentPage === 'custom-dashboard'
+                        ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800'
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="font-medium">{item.label}</span>
+                    <svg
+                      className={`w-4 h-4 ml-auto transition-transform ${customCardsExpanded ? 'rotate-90' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  {customCardsExpanded && (
+                    <ul className="ml-6 mt-2 space-y-1">
+                      <li>
+                        <button
+                          onClick={() => onPageChange('custom-dashboard')}
+                          className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-left transition-colors duration-200 ${
+                            currentPage === 'custom-dashboard'
+                              ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800'
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                          </svg>
+                          <span className="font-medium">Custom Dashboard</span>
+                          {customCards.length > 0 && (
+                            <span className="ml-auto bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 rounded-full px-2 py-1 text-xs font-medium">
+                              {customCards.filter(card => card.isActive).length}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => onPageChange(item.id)}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors duration-200 ${
+                    currentPage === item.id
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800'
+                  }`}
+                >
+                  {item.icon}
+                  <span className="font-medium">{item.label}</span>
+                  {item.badge !== undefined && (
+                    <span className="ml-auto bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-full px-2 py-1 text-xs font-medium">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -183,100 +274,6 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
 
       </nav>
 
-      {/* Donation Card */}
-      <div className="p-4 border-t border-gray-200 dark:border-dark-700">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
-          <div className="flex items-center space-x-2 mb-2">
-            <span className="text-lg">🍺</span>
-            <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              Like this Dashboard?
-            </div>
-          </div>
-          <div className="text-xs text-blue-700 dark:text-blue-300 mb-3">
-            Buy Fishyink a beer to say thank you!
-          </div>
-          <div className="space-y-3">
-            {/* USDT Address */}
-            <div>
-              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-2">
-                USDT (TRC20):
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="flex-1 bg-white dark:bg-dark-800 rounded border border-blue-200 dark:border-blue-700 p-2">
-                  <div className="text-xs font-mono text-gray-900 dark:text-gray-100 break-all leading-tight">
-                    TKbvxKPKh6MZa4Qkj9AnDzj4AjM2CXT239
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText('TKbvxKPKh6MZa4Qkj9AnDzj4AjM2CXT239')
-                    setCopiedAddress('USDT')
-                    setTimeout(() => setCopiedAddress(null), 2000)
-                  }}
-                  className={`p-2 text-white rounded text-xs transition-all duration-200 ${
-                    copiedAddress === 'USDT'
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                  title={copiedAddress === 'USDT' ? 'Copied!' : 'Copy USDT address'}
-                >
-                  {copiedAddress === 'USDT' ? (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* BTC Address */}
-            <div>
-              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-2">
-                Bitcoin (BTC):
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="flex-1 bg-white dark:bg-dark-800 rounded border border-blue-200 dark:border-blue-700 p-2">
-                  <div className="text-xs font-mono text-gray-900 dark:text-gray-100 break-all leading-tight">
-                    1MAZ6hDPPt7cn1rELBMyyLZsj6rgcHDQxr
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText('1MAZ6hDPPt7cn1rELBMyyLZsj6rgcHDQxr')
-                    setCopiedAddress('BTC')
-                    setTimeout(() => setCopiedAddress(null), 2000)
-                  }}
-                  className={`p-2 text-white rounded text-xs transition-all duration-200 ${
-                    copiedAddress === 'BTC'
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : 'bg-orange-600 hover:bg-orange-700'
-                  }`}
-                  title={copiedAddress === 'BTC' ? 'Copied!' : 'Copy BTC address'}
-                >
-                  {copiedAddress === 'BTC' ? (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
-            <div className="text-xs text-blue-600 dark:text-blue-400">
-              All donations go directly to development • Thank you for your support! 🙏
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Version Number */}
       <div className="px-4 pb-4">

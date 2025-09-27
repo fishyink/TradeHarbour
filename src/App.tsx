@@ -8,10 +8,13 @@ import { Settings } from './components/Settings'
 import { Beta } from './components/Beta'
 import { DaviddtechBeta } from './components/DaviddtechBeta'
 import { Diagnostics } from './components/Diagnostics'
+import { TradeHistory } from './components/TradeHistory'
+import { CustomCards } from './components/CustomCards'
+import { CustomDashboard } from './components/CustomDashboard'
 import { useAutoRefresh } from './hooks/useAutoRefresh'
 import { useState } from 'react'
 
-type Page = 'dashboard' | 'accounts' | 'settings' | 'beta' | 'daviddtech-beta' | 'diagnostics'
+type Page = 'dashboard' | 'accounts' | 'settings' | 'beta' | 'daviddtech-beta' | 'diagnostics' | 'trade-history' | 'custom-cards' | 'custom-dashboard'
 
 function App() {
   const { settings, loadData, error, setError } = useAppStore()
@@ -43,6 +46,12 @@ function App() {
         return <DaviddtechBeta />
       case 'diagnostics':
         return <Diagnostics />
+      case 'trade-history':
+        return <TradeHistory />
+      case 'custom-cards':
+        return <CustomCards />
+      case 'custom-dashboard':
+        return <CustomDashboard />
       default:
         return <Dashboard onPageChange={(page: string) => setCurrentPage(page as Page)} />
     }

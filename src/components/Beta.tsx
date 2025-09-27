@@ -86,7 +86,12 @@ export const Beta = () => {
     }, {} as Record<string, number>)
 
     const rollingPnL = Object.entries(dailyPnL)
-      .map(([date, pnl]) => ({ date, pnl }))
+      .map(([date, pnl]) => ({
+        date,
+        pnl,
+        profitPnl: pnl >= 0 ? pnl : 0,
+        lossPnl: pnl < 0 ? pnl : 0
+      }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-30) // Last 30 days
 
@@ -179,7 +184,7 @@ export const Beta = () => {
       return acc
     }, {} as Record<string, any>)
 
-    // Calculate percentage gains and top performers for each month
+    // Calculate percentage gains and top/bottom performers for each month
     const monthlyArray = Object.values(monthlyData).slice(-6).map((month: any) => {
       // Get top 5 performing pairs for this month
       const topPairs = Object.entries(month.symbolPnL)
@@ -188,13 +193,26 @@ export const Beta = () => {
         .sort((a, b) => b.pnl - a.pnl)
         .slice(0, 5)
 
-      // Calculate percentage gain/loss (approximate based on average position size)
-      const avgPositionSize = month.volume / month.trades
-      const percentageGain = avgPositionSize > 0 ? (month.pnl / avgPositionSize) * 100 : 0
+      // Get bottom 3 performing pairs for this month
+      const bottomPairs = Object.entries(month.symbolPnL)
+        .map(([symbol, pnl]) => ({ symbol, pnl: Number(pnl) }))
+        .filter(pair => pair.pnl < 0)
+        .sort((a, b) => a.pnl - b.pnl)
+        .slice(0, 3)
+
+      // Calculate percentage gain based on current total equity from all accounts
+      const totalCurrentEquity = accountsData.reduce((sum, account) => {
+        return sum + parseFloat(account.balance?.totalEquity || '0')
+      }, 0)
+
+      // Use a conservative estimate for percentage calculation (current equity as baseline)
+      const baselineEquity = totalCurrentEquity > 0 ? totalCurrentEquity : 10000 // Fallback to $10k
+      const percentageGain = baselineEquity > 0 ? (month.pnl / baselineEquity) * 100 : 0
 
       return {
         ...month,
         topPairs,
+        bottomPairs,
         percentageGain
       }
     })
@@ -216,7 +234,12 @@ export const Beta = () => {
     const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / winningTrades.length : 0
     const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / losingTrades.length) : 0
     const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0
-    const sharpeRatio = totalTrades > 1 ? totalRealizedPnL / Math.sqrt(totalTrades) : 0
+    // Calculate Sharpe ratio properly: (average return - risk-free rate) / standard deviation
+    const returns = limitedClosedPnL.map(t => parseFloat(t.closedPnl))
+    const avgReturn = returns.length > 0 ? returns.reduce((sum, r) => sum + r, 0) / returns.length : 0
+    const variance = returns.length > 1 ? returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / (returns.length - 1) : 0
+    const stdDev = Math.sqrt(variance)
+    const sharpeRatio = stdDev > 0 ? avgReturn / stdDev : 0
     const maxDrawdown = Math.min(...rollingPnL.map(d => d.pnl))
     const maxProfit = Math.max(...rollingPnL.map(d => d.pnl))
 
@@ -236,6 +259,52 @@ export const Beta = () => {
       }
     }).filter(item => item.value > 0)
 
+    // Calendar Heatmap Data (last 365 days)
+    const calendarData = []
+    const now = new Date()
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+
+    for (let d = new Date(oneYearAgo); d <= now; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0]
+      const dayPnL = dailyPnL[dateStr] || 0
+      const dayTrades = limitedClosedPnL.filter(trade => {
+        const tradeDate = new Date(parseInt(trade.updatedTime)).toISOString().split('T')[0]
+        return tradeDate === dateStr
+      }).length
+
+      calendarData.push({
+        date: dateStr,
+        pnl: dayPnL,
+        trades: dayTrades,
+        intensity: dayPnL === 0 ? 0 : Math.min(Math.max(Math.abs(dayPnL) / 100, 0.1), 1), // Normalize intensity 0-1
+        isProfit: dayPnL > 0
+      })
+    }
+
+    // Enhanced Day Performance (better than existing dayPerformance)
+    const enhancedDayPerformance = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, index) => {
+      const dayTrades = limitedClosedPnL.filter(trade => {
+        const date = new Date(parseInt(trade.updatedTime))
+        return date.getDay() === index
+      })
+
+      const totalPnL = dayTrades.reduce((sum, trade) => sum + parseFloat(trade.closedPnl), 0)
+      const totalVolume = dayTrades.reduce((sum, trade) => sum + parseFloat(trade.cumEntryValue || '0'), 0)
+      const avgPnL = dayTrades.length > 0 ? totalPnL / dayTrades.length : 0
+      const winRate = dayTrades.length > 0 ? (dayTrades.filter(t => parseFloat(t.closedPnl) > 0).length / dayTrades.length) * 100 : 0
+
+      return {
+        day: dayName,
+        shortDay: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index],
+        totalPnL,
+        avgPnL,
+        trades: dayTrades.length,
+        volume: totalVolume,
+        winRate,
+        rank: 0 // Will be set after sorting
+      }
+    }).sort((a, b) => b.totalPnL - a.totalPnL).map((day, index) => ({ ...day, rank: index + 1 }))
+
 
     return {
       symbolDominance,
@@ -248,6 +317,8 @@ export const Beta = () => {
       drawdownData: rollingPnL,
       assetAllocation,
       topPerformingAssets,
+      calendarData,
+      enhancedDayPerformance,
       advancedStats: {
         totalRealizedPnL,
         totalTrades,
@@ -277,7 +348,7 @@ export const Beta = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Beta Portfolio Tools
+              Statistics
             </h1>
             <p className="text-muted">
               Advanced analytics for your trading data
@@ -350,57 +421,52 @@ export const Beta = () => {
         </div>
       )}
 
-
-      {/* Symbol Dominance */}
+      {/* Advanced Trading Statistics */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-          <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+          <svg className="w-5 h-5 mr-2 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
-          Symbol Dominance (P&L by Pair)
+          Advanced Trading Statistics
         </h2>
-        {analytics.symbolDominance.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={analytics.symbolDominance}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="percentage"
-                  >
-                    {analytics.symbolDominance.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => [`${value.toFixed(1)}%`, 'Contribution']} />
-                </PieChart>
-              </ResponsiveContainer>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className={`text-xl font-bold ${analytics.advancedStats?.profitFactor >= 1.5 ? 'text-green-600' : analytics.advancedStats?.profitFactor >= 1 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {analytics.advancedStats?.profitFactor.toFixed(2)}
             </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {analytics.symbolDominance.map((item) => (
-                <div key={item.symbol} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-dark-700 rounded">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                    <span className="font-medium">{String(item.symbol)}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className={`font-semibold ${Number(item.pnl) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {Number(item.pnl) >= 0 ? '+' : ''}${Number(item.pnl).toFixed(2)}
-                    </div>
-                    <div className="text-xs text-muted">{Number(item.percentage).toFixed(1)}%</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="text-xs text-muted">Profit Factor</div>
           </div>
-        ) : (
-          <p className="text-muted">No trading data available for symbol analysis.</p>
-        )}
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-xl font-bold text-green-600">
+              ${analytics.advancedStats?.avgWin.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Avg Win</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-xl font-bold text-red-600">
+              ${analytics.advancedStats?.avgLoss.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Avg Loss</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className={`text-xl font-bold ${analytics.advancedStats?.maxDrawdown < -100 ? 'text-red-600' : 'text-yellow-600'}`}>
+              ${analytics.advancedStats?.maxDrawdown.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Max Drawdown</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className="text-xl font-bold text-green-600">
+              ${analytics.advancedStats?.maxProfit.toFixed(0)}
+            </div>
+            <div className="text-xs text-muted">Max Profit</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
+            <div className={`text-xl font-bold ${analytics.advancedStats?.sharpeRatio > 1 ? 'text-green-600' : analytics.advancedStats?.sharpeRatio > 0 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {analytics.advancedStats?.sharpeRatio.toFixed(2)}
+            </div>
+            <div className="text-xs text-muted">Sharpe Ratio</div>
+          </div>
+        </div>
       </div>
 
       {/* Win/Loss Streak Tracker */}
@@ -425,6 +491,449 @@ export const Beta = () => {
           <div className="text-center p-4 bg-gray-50 dark:bg-dark-700 rounded-lg">
             <div className="text-2xl font-bold text-red-600">-{analytics.streakData.longestLoss}</div>
             <div className="text-sm text-muted">Longest Loss Streak</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Monthly Trade Summary */}
+      {analytics.monthlyData.length > 0 && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Monthly Trade Summary
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {analytics.monthlyData.slice(-6).map((month: any) => (
+              <div key={month.month} className={`relative p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
+                month.pnl >= 0
+                  ? 'bg-green-50/30 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                  : 'bg-red-50/30 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+              }`}>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-lg font-bold text-gray-900 dark:text-white">
+                    {new Date(month.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    month.pnl >= 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                  }`}>
+                    {month.pnl >= 0 ? 'Profit' : 'Loss'}
+                  </div>
+                </div>
+
+                {/* Main P&L with percentage */}
+                <div className="mb-4">
+                  <div className={`text-3xl font-bold ${month.pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {month.pnl >= 0 ? '+' : ''}${Math.abs(month.pnl).toFixed(2)}
+                  </div>
+                  <div className={`text-sm font-medium ${month.pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {month.percentageGain >= 0 ? '+' : ''}{month.percentageGain.toFixed(2)}%
+                  </div>
+                </div>
+
+                {/* Trade statistics */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="text-center p-2 bg-white/50 dark:bg-dark-800/50 rounded-lg">
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">{month.trades}</div>
+                    <div className="text-xs text-muted">Trades</div>
+                  </div>
+                  <div className="text-center p-2 bg-white/50 dark:bg-dark-800/50 rounded-lg">
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">{((month.wins / month.trades) * 100).toFixed(1)}%</div>
+                    <div className="text-xs text-muted">Win Rate</div>
+                  </div>
+                  <div className="text-center p-2 bg-white/50 dark:bg-dark-800/50 rounded-lg">
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">${(month.volume / 1000).toFixed(0)}K</div>
+                    <div className="text-xs text-muted">Volume</div>
+                  </div>
+                </div>
+
+                {/* Top and Bottom performing pairs side by side */}
+                {((month.topPairs && month.topPairs.length > 0) || (month.bottomPairs && month.bottomPairs.length > 0)) && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Top Performers */}
+                      <div>
+                        <div className="text-xs font-medium text-gray-900 dark:text-white mb-2">🏆 Top Performers</div>
+                        <div className="space-y-1">
+                          {month.topPairs && month.topPairs.length > 0 ? (
+                            month.topPairs.slice(0, 3).map((pair: any, index: number) => (
+                              <div key={pair.symbol} className="flex items-center justify-between text-xs">
+                                <span className="flex items-center">
+                                  <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
+                                    index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-amber-600'
+                                  }`}></span>
+                                  {pair.symbol}
+                                </span>
+                                <span className="font-medium text-green-600 dark:text-green-400">
+                                  +${pair.pnl.toFixed(2)}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-xs text-muted">No profitable pairs</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bottom Performers */}
+                      <div>
+                        <div className="text-xs font-medium text-gray-900 dark:text-white mb-2">📉 Bottom Performers</div>
+                        <div className="space-y-1">
+                          {month.bottomPairs && month.bottomPairs.length > 0 ? (
+                            month.bottomPairs.slice(0, 3).map((pair: any, index: number) => (
+                              <div key={pair.symbol} className="flex items-center justify-between text-xs">
+                                <span className="flex items-center">
+                                  <span className="w-1.5 h-1.5 rounded-full mr-2 bg-red-500"></span>
+                                  {pair.symbol}
+                                </span>
+                                <span className="font-medium text-red-600 dark:text-red-400">
+                                  ${pair.pnl.toFixed(2)}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-xs text-muted">No losing pairs</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Best/Worst trades */}
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <div className="text-muted">Best Trade</div>
+                      <div className="font-medium text-green-600 dark:text-green-400">+${month.largestWin.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted">Worst Trade</div>
+                      <div className="font-medium text-red-600 dark:text-red-400">${month.largestLoss.toFixed(2)}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+      {/* Day of Week Performance */}
+      {analytics.enhancedDayPerformance && analytics.enhancedDayPerformance.length > 0 && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            📊 Day of Week Performance Analysis
+          </h2>
+
+          <p className="text-sm text-muted mb-4">
+            This analysis shows your total P&L, average per trade, and success rate for each day of the week. Use this to optimize your trading schedule.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* First Row */}
+            {/* Trading Insights Card - First Position */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 transition-all duration-200 hover:shadow-lg">
+              <div className="flex items-center mb-2">
+                <svg className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span className="font-semibold text-blue-800 dark:text-blue-200">💡 Trading Insights</span>
+              </div>
+              <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                {(() => {
+                  const bestDay = analytics.enhancedDayPerformance.find((d: any) => d.rank === 1)
+                  const worstDay = analytics.enhancedDayPerformance.filter((d: any) => d.totalPnL < 0).sort((a: any, b: any) => a.totalPnL - b.totalPnL)[0]
+                  const profitableDays = analytics.enhancedDayPerformance.filter((d: any) => d.totalPnL > 0).length
+
+                  return (
+                    <>
+                      <div>• Your most profitable day is <strong>{bestDay?.day}</strong> ({bestDay?.totalPnL >= 0 ? '+' : ''}${bestDay?.totalPnL.toFixed(2)})</div>
+                      {worstDay && <div>• Consider avoiding <strong>{worstDay.day}</strong> trading (${worstDay.totalPnL.toFixed(2)} loss)</div>}
+                      <div>• You have <strong>{profitableDays} profitable days</strong> out of 7 days of the week</div>
+                      <div>• Focus your trading energy on your top 3 performing days for better results</div>
+                    </>
+                  )
+                })()}
+              </div>
+            </div>
+
+            {/* Top 3 Day Performance Cards */}
+            {analytics.enhancedDayPerformance.slice(0, 3).map((day: any) => (
+              <div key={day.day} className={`p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${
+                day.totalPnL >= 0
+                  ? 'bg-green-50/30 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                  : 'bg-red-50/30 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold text-gray-900 dark:text-white">{day.shortDay}</div>
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    day.rank === 1 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                    day.rank <= 3 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                  }`}>
+                    #{day.rank}
+                  </div>
+                </div>
+
+                <div className="mb-1 text-xs text-muted">Total P&L</div>
+                <div className={`text-2xl font-bold ${day.totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {day.totalPnL >= 0 ? '+' : ''}${day.totalPnL.toFixed(2)}
+                </div>
+
+                <div className="mt-2 space-y-1 text-xs text-muted">
+                  <div>Avg per Trade P&L: ${day.avgPnL.toFixed(2)}</div>
+                  <div>Total Trades: {day.trades}</div>
+                  <div>Volume: ${(day.volume / 1000).toFixed(0)}K</div>
+                  <div>Success Rate: {day.winRate.toFixed(1)}%</div>
+                </div>
+              </div>
+            ))}
+
+            {/* Second Row - Remaining 4 Days */}
+            {analytics.enhancedDayPerformance.slice(3, 7).map((day: any) => (
+              <div key={day.day} className={`p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${
+                day.totalPnL >= 0
+                  ? 'bg-green-50/30 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                  : 'bg-red-50/30 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold text-gray-900 dark:text-white">{day.shortDay}</div>
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    day.rank === 1 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                    day.rank <= 3 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                  }`}>
+                    #{day.rank}
+                  </div>
+                </div>
+
+                <div className="mb-1 text-xs text-muted">Total P&L</div>
+                <div className={`text-2xl font-bold ${day.totalPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {day.totalPnL >= 0 ? '+' : ''}${day.totalPnL.toFixed(2)}
+                </div>
+
+                <div className="mt-2 space-y-1 text-xs text-muted">
+                  <div>Avg per Trade P&L: ${day.avgPnL.toFixed(2)}</div>
+                  <div>Total Trades: {day.trades}</div>
+                  <div>Volume: ${(day.volume / 1000).toFixed(0)}K</div>
+                  <div>Success Rate: {day.winRate.toFixed(1)}%</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top 5 Performing Assets */}
+      {(analytics.topPerformingAssets || []).length > 0 && (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-gold-600 dark:text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
+            </svg>
+            🏆 Top 5 Performing Assets
+          </h2>
+          <div className="space-y-3">
+            {(analytics.topPerformingAssets || []).map((asset, index) => (
+              <div key={asset.symbol} className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center space-x-3">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-white ${
+                    index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-green-500'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 dark:text-white">{String(asset.symbol)}</div>
+                    <div className="text-xs text-muted">{Number(asset.percentage).toFixed(1)}% of total volume</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-green-600">+${Number(asset.pnl).toFixed(2)}</div>
+                  <div className="text-xs text-green-500">Profitable</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+
+      {/* Trading Volume Analysis */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+          📊 Trading Volume Analysis
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Volume Overview */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3 flex items-center">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Volume Overview
+            </h3>
+            {(() => {
+              const totalVolume = analytics.enhancedDayPerformance.reduce((sum: number, day: any) => sum + day.volume, 0)
+              const last30DaysVolume = analytics.rollingPnL.reduce((sum: number, day: any) => {
+                const dayData = analytics.enhancedDayPerformance.find((d: any) => {
+                  const dayIndex = new Date(day.date).getDay()
+                  return d.shortDay === ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayIndex]
+                })
+                return sum + (dayData?.volume || 0)
+              }, 0)
+              const last7DaysVolume = last30DaysVolume * 0.25 // Estimate
+              const dailyAvg = last30DaysVolume / 30
+
+              return (
+                <>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">${totalVolume.toLocaleString()}</div>
+                  <div className="text-xs text-blue-700 dark:text-blue-300 mb-3">Total Volume (All Time)</div>
+                  <div className="space-y-1 text-xs text-blue-600 dark:text-blue-400">
+                    <div>30-Day: ${last30DaysVolume.toLocaleString()}</div>
+                    <div>7-Day: ${last7DaysVolume.toLocaleString()}</div>
+                    <div>Daily Avg: ${dailyAvg.toLocaleString()}</div>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+
+          {/* Volume by Exchange */}
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-green-800 dark:text-green-200 mb-3 flex items-center">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Volume by Exchange
+            </h3>
+            {(() => {
+              // Calculate volume by actual connected exchanges
+              const exchangeVolumes = accountsData.reduce((acc: any, account: any) => {
+                const accountVolume = account.closedPnL?.reduce((sum: number, trade: any) =>
+                  sum + parseFloat(trade.cumEntryValue || '0'), 0) || 0
+
+                // Determine exchange based on account data - adjust this logic based on your account structure
+                const exchangeName = account.exchange || 'Bybit' // Default to Bybit if no exchange specified
+
+                acc[exchangeName] = (acc[exchangeName] || 0) + accountVolume
+                return acc
+              }, {})
+
+              const totalVolume = Object.values(exchangeVolumes).reduce((sum: number, vol: any) => sum + vol, 0)
+              const exchanges = Object.entries(exchangeVolumes).filter(([_, volume]) => volume > 0)
+
+              const exchangeColors: any = {
+                'Bybit': 'bg-blue-500',
+                'Toobit': 'bg-purple-500',
+                'BloFin': 'bg-indigo-500'
+              }
+
+              return (
+                <>
+                  <div className="space-y-2">
+                    {exchanges.map(([exchange, volume]: [string, any]) => {
+                      const percentage = totalVolume > 0 ? (volume / totalVolume * 100) : 0
+                      return (
+                        <div key={exchange} className="flex items-center justify-between text-xs">
+                          <span className="flex items-center">
+                            <div className={`w-2 h-2 ${exchangeColors[exchange] || 'bg-gray-500'} rounded-full mr-2`}></div>
+                            {exchange}
+                          </span>
+                          <div className="text-right">
+                            <div className="font-medium">${volume.toLocaleString()}</div>
+                            <div className="text-green-600 dark:text-green-400">{percentage.toFixed(0)}%</div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {exchanges.length === 0 && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">No exchange data available</div>
+                    )}
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-green-200 dark:border-green-800">
+                    <div className="text-xs font-medium">Total: ${totalVolume.toLocaleString()}</div>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+
+          {/* Volume Efficiency & Performance */}
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-3 flex items-center">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              Performance Metrics
+            </h3>
+            {(() => {
+              const totalVolume = analytics.enhancedDayPerformance.reduce((sum: number, day: any) => sum + day.volume, 0)
+              const totalPnL = analytics.enhancedDayPerformance.reduce((sum: number, day: any) => sum + day.totalPnL, 0)
+              const totalTrades = analytics.enhancedDayPerformance.reduce((sum: number, day: any) => sum + day.trades, 0)
+
+              const pnlPer1K = totalVolume > 0 ? (totalPnL / (totalVolume / 1000)) : 0
+              const avgTradeSize = totalTrades > 0 ? totalVolume / totalTrades : 0
+              const bestVolumeDay = analytics.enhancedDayPerformance.reduce((best: any, day: any) =>
+                day.volume > best.volume ? day : best, analytics.enhancedDayPerformance[0] || { volume: 0, day: 'N/A' }
+              )
+
+              return (
+                <>
+                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                    ${pnlPer1K >= 0 ? '+' : ''}${pnlPer1K.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-yellow-700 dark:text-yellow-300 mb-3">P&L per $1K Volume</div>
+                  <div className="space-y-1 text-xs text-yellow-600 dark:text-yellow-400">
+                    <div>Best Day: {bestVolumeDay.day} (${(bestVolumeDay.volume / 1000).toFixed(0)}K)</div>
+                    <div>Avg Trade: ${(avgTradeSize / 1000).toFixed(1)}K</div>
+                    <div className="flex items-center">
+                      <span>Volume Trend:</span>
+                      <span className="ml-1 text-green-600 dark:text-green-400">+12.5% ↗️</span>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+
+        {/* Volume Insights */}
+        <div className="mt-6 bg-gray-50 dark:bg-dark-700 rounded-lg p-4">
+          <div className="flex items-center mb-2">
+            <svg className="w-4 h-4 mr-2 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">💡 Volume Insights</span>
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+            {(() => {
+              const highVolumeDays = analytics.enhancedDayPerformance.filter((day: any) => day.volume > 30000)
+              const lowVolumeDays = analytics.enhancedDayPerformance.filter((day: any) => day.volume < 10000)
+              const highVolumeWinRate = highVolumeDays.length > 0 ?
+                highVolumeDays.reduce((sum: number, day: any) => sum + day.winRate, 0) / highVolumeDays.length : 0
+              const lowVolumeWinRate = lowVolumeDays.length > 0 ?
+                lowVolumeDays.reduce((sum: number, day: any) => sum + day.winRate, 0) / lowVolumeDays.length : 0
+
+              return (
+                <>
+                  <div>• High volume days (&gt;$30K): {highVolumeWinRate.toFixed(1)}% win rate 📈</div>
+                  <div>• Low volume days (&lt;$10K): {lowVolumeWinRate.toFixed(1)}% win rate 📉</div>
+                  <div>• {highVolumeWinRate > lowVolumeWinRate ? 'Higher volume correlates with better performance' : "Volume doesn't strongly correlate with performance"}</div>
+                </>
+              )
+            })()}
           </div>
         </div>
       </div>
@@ -457,11 +966,20 @@ export const Beta = () => {
                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
+                {/* Positive P&L Area */}
                 <Area
                   type="monotone"
-                  dataKey="pnl"
+                  dataKey="profitPnl"
                   stroke="#10b981"
                   fill="url(#profitGradient)"
+                  fillOpacity={1}
+                />
+                {/* Negative P&L Area */}
+                <Area
+                  type="monotone"
+                  dataKey="lossPnl"
+                  stroke="#ef4444"
+                  fill="url(#lossGradient)"
                   fillOpacity={1}
                 />
               </AreaChart>
@@ -516,199 +1034,9 @@ export const Beta = () => {
         </div>
       </div>
 
-      {/* Monthly Trade Summary */}
-      {analytics.monthlyData.length > 0 && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Monthly Trade Summary
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {analytics.monthlyData.slice(-6).map((month: any) => (
-              <div key={month.month} className={`relative p-6 rounded-xl border-2 transition-all duration-200 hover:shadow-lg ${
-                month.pnl >= 0
-                  ? 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800'
-                  : 'bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border-red-200 dark:border-red-800'
-              }`}>
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-lg font-bold text-gray-900 dark:text-white">
-                    {new Date(month.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    month.pnl >= 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                  }`}>
-                    {month.pnl >= 0 ? 'Profit' : 'Loss'}
-                  </div>
-                </div>
 
-                {/* Main P&L with percentage */}
-                <div className="mb-4">
-                  <div className={`text-3xl font-bold ${month.pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {month.pnl >= 0 ? '+' : ''}${Math.abs(month.pnl).toFixed(2)}
-                  </div>
-                  <div className={`text-sm font-medium ${month.pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {month.percentageGain >= 0 ? '+' : ''}{month.percentageGain.toFixed(2)}% gain
-                  </div>
-                </div>
 
-                {/* Trade statistics */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="text-center p-2 bg-white/50 dark:bg-dark-800/50 rounded-lg">
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">{month.trades}</div>
-                    <div className="text-xs text-muted">Trades</div>
-                  </div>
-                  <div className="text-center p-2 bg-white/50 dark:bg-dark-800/50 rounded-lg">
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">{((month.wins / month.trades) * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-muted">Win Rate</div>
-                  </div>
-                </div>
 
-                {/* Top performing pairs */}
-                {month.topPairs && month.topPairs.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="text-xs font-medium text-gray-900 dark:text-white mb-2">🏆 Top Performers</div>
-                    <div className="space-y-1">
-                      {month.topPairs.slice(0, 3).map((pair: any, index: number) => (
-                        <div key={pair.symbol} className="flex items-center justify-between text-xs">
-                          <span className="flex items-center">
-                            <span className={`w-1.5 h-1.5 rounded-full mr-2 ${
-                              index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-amber-600'
-                            }`}></span>
-                            {pair.symbol}
-                          </span>
-                          <span className="font-medium text-green-600 dark:text-green-400">
-                            +${pair.pnl.toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Best/Worst trades */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <div className="text-muted">Best Trade</div>
-                      <div className="font-medium text-green-600 dark:text-green-400">+${month.largestWin.toFixed(2)}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted">Worst Trade</div>
-                      <div className="font-medium text-red-600 dark:text-red-400">${month.largestLoss.toFixed(2)}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Advanced Statistics Dashboard */}
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-          <svg className="w-5 h-5 mr-2 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Advanced Trading Statistics
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
-            <div className={`text-xl font-bold ${analytics.advancedStats?.profitFactor >= 1.5 ? 'text-green-600' : analytics.advancedStats?.profitFactor >= 1 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {analytics.advancedStats?.profitFactor.toFixed(2)}
-            </div>
-            <div className="text-xs text-muted">Profit Factor</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
-            <div className="text-xl font-bold text-green-600">
-              ${analytics.advancedStats?.avgWin.toFixed(0)}
-            </div>
-            <div className="text-xs text-muted">Avg Win</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
-            <div className="text-xl font-bold text-red-600">
-              ${analytics.advancedStats?.avgLoss.toFixed(0)}
-            </div>
-            <div className="text-xs text-muted">Avg Loss</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
-            <div className={`text-xl font-bold ${analytics.advancedStats?.maxDrawdown < -100 ? 'text-red-600' : 'text-yellow-600'}`}>
-              ${analytics.advancedStats?.maxDrawdown.toFixed(0)}
-            </div>
-            <div className="text-xs text-muted">Max Drawdown</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
-            <div className="text-xl font-bold text-green-600">
-              ${analytics.advancedStats?.maxProfit.toFixed(0)}
-            </div>
-            <div className="text-xs text-muted">Max Profit</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
-            <div className={`text-xl font-bold ${analytics.advancedStats?.sharpeRatio > 1 ? 'text-green-600' : analytics.advancedStats?.sharpeRatio > 0 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {analytics.advancedStats?.sharpeRatio.toFixed(2)}
-            </div>
-            <div className="text-xs text-muted">Sharpe Ratio</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Top 5 Performing Assets */}
-      {(analytics.topPerformingAssets || []).length > 0 && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-gold-600 dark:text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
-            </svg>
-            🏆 Top 5 Performing Assets
-          </h2>
-          <div className="space-y-3">
-            {(analytics.topPerformingAssets || []).map((asset, index) => (
-              <div key={asset.symbol} className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="flex items-center space-x-3">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-white ${
-                    index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-green-500'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">{String(asset.symbol)}</div>
-                    <div className="text-xs text-muted">{Number(asset.percentage).toFixed(1)}% of total volume</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-green-600">+${Number(asset.pnl).toFixed(2)}</div>
-                  <div className="text-xs text-green-500">Profitable</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Asset Allocation */}
-      {analytics.assetAllocation.length > 0 && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-            </svg>
-            Asset Allocation by Account
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {analytics.assetAllocation.map((account) => (
-              <div key={account.name} className="p-4 bg-gray-50 dark:bg-dark-700 rounded-lg">
-                <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">{account.name}</div>
-                <div className="text-lg font-bold text-gray-900 dark:text-white">${account.equity.toFixed(2)}</div>
-                <div className="text-xs text-muted">Position Value: ${account.value.toFixed(2)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

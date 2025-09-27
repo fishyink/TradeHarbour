@@ -27,6 +27,7 @@ export interface BybitPosition {
   leverageSysUpdatedTime: string
   createdTime: string
   updatedTime: string
+  leverage?: string
 }
 
 export interface BybitTrade {

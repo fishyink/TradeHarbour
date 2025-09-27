@@ -1,5 +1,6 @@
 import CryptoJS from 'crypto-js'
 import type { EquitySnapshot } from '../store/useAppStore'
+import type { ExchangeAccount, ExchangeType } from '../types/exchanges'
 
 const ENCRYPTION_KEY = 'bybit-dashboard-encryption-key-2024'
 
@@ -10,6 +11,25 @@ export interface BybitAccount {
   apiSecret: string
   isTestnet: boolean
   createdAt: number
+}
+
+// Legacy support for existing accounts
+export function convertToExchangeAccount(account: BybitAccount): ExchangeAccount {
+  return {
+    ...account,
+    exchange: 'bybit' as ExchangeType
+  }
+}
+
+export function convertToBybitAccount(account: ExchangeAccount): BybitAccount {
+  return {
+    id: account.id,
+    name: account.name,
+    apiKey: account.apiKey,
+    apiSecret: account.apiSecret,
+    isTestnet: account.isTestnet,
+    createdAt: account.createdAt
+  }
 }
 
 export interface AppSettings {
@@ -127,6 +147,71 @@ class StorageService {
       await window.electronAPI.store.clear()
     } catch (error) {
       console.error('Error clearing data:', error)
+      throw error
+    }
+  }
+
+  // New methods for ExchangeAccount support
+  async getExchangeAccounts(): Promise<ExchangeAccount[]> {
+    try {
+      const encryptedData = await window.electronAPI.store.get('exchangeAccounts')
+      if (!encryptedData) {
+        // Try to migrate from old accounts format
+        const oldAccounts = await this.getAccounts()
+        if (oldAccounts.length > 0) {
+          const exchangeAccounts = oldAccounts.map(convertToExchangeAccount)
+          await this.saveExchangeAccounts(exchangeAccounts)
+          return exchangeAccounts
+        }
+        return []
+      }
+
+      const decryptedData = this.decrypt(encryptedData)
+      return JSON.parse(decryptedData)
+    } catch (error) {
+      console.error('Error getting exchange accounts:', error)
+      return []
+    }
+  }
+
+  async saveExchangeAccount(account: ExchangeAccount): Promise<void> {
+    try {
+      const accounts = await this.getExchangeAccounts()
+      const existingIndex = accounts.findIndex(acc => acc.id === account.id)
+
+      if (existingIndex >= 0) {
+        accounts[existingIndex] = account
+      } else {
+        accounts.push(account)
+      }
+
+      const encryptedData = this.encrypt(JSON.stringify(accounts))
+      await window.electronAPI.store.set('exchangeAccounts', encryptedData)
+    } catch (error) {
+      console.error('Error saving exchange account:', error)
+      throw error
+    }
+  }
+
+  async saveExchangeAccounts(accounts: ExchangeAccount[]): Promise<void> {
+    try {
+      const encryptedData = this.encrypt(JSON.stringify(accounts))
+      await window.electronAPI.store.set('exchangeAccounts', encryptedData)
+    } catch (error) {
+      console.error('Error saving exchange accounts:', error)
+      throw error
+    }
+  }
+
+  async deleteExchangeAccount(accountId: string): Promise<void> {
+    try {
+      const accounts = await this.getExchangeAccounts()
+      const filteredAccounts = accounts.filter(acc => acc.id !== accountId)
+
+      const encryptedData = this.encrypt(JSON.stringify(filteredAccounts))
+      await window.electronAPI.store.set('exchangeAccounts', encryptedData)
+    } catch (error) {
+      console.error('Error deleting exchange account:', error)
       throw error
     }
   }

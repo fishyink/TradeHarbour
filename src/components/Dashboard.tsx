@@ -3,12 +3,12 @@ import { useAppStore } from '../store/useAppStore'
 import { AccountCard } from './AccountCard'
 import { StatsCard } from './StatsCard'
 import { PositionsTable } from './PositionsTable'
-import { TradesTable } from './TradesTable'
 // import { EquityChart } from './EquityChart'
 import { LoadingProgress } from './LoadingProgress'
 import { getTotalEquity, getTotalPnL } from '../store/useAppStore'
 import { exportTradesToCSV, exportPositionsToCSV, exportEquityHistoryToCSV } from '../utils/csvExport'
 import { bybitAPI } from '../services/bybit'
+import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Area, AreaChart } from 'recharts'
 
 interface DashboardProps {
   onPageChange?: (page: string) => void
@@ -16,6 +16,7 @@ interface DashboardProps {
 
 export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
   const { accountsData, accounts, isLoading, forceClearEquityHistory, addEquitySnapshot, backfillEquityHistory } = useAppStore()
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'7D' | '30D' | '90D' | '180D'>('180D')
 
   // Force clear bad equity history and backfill with real historical data
   React.useEffect(() => {
@@ -56,7 +57,6 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
   const [historicalProgress, setHistoricalProgress] = useState<any>(null)
   const [historicalCacheStats, setHistoricalCacheStats] = useState<any>(null)
   const [isLoadingHistorical, setIsLoadingHistorical] = useState(false)
-  const [currentTradesPage, setCurrentTradesPage] = useState(0)
   // const [equityTimeframe, setEquityTimeframe] = useState<'7d' | '30d' | '90d'>('30d')
 
   const filteredData = selectedAccount
@@ -136,6 +136,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
   const calculateStats = useMemo(() => {
     // Use closed P&L data for accurate statistics from filtered accounts
     const allClosedPnL = filteredData.flatMap(account => account.closedPnL || [])
+    const now = Date.now()
     const allTrades = filteredData.flatMap(account => account.trades || [])
 
     console.log('📊 Stats Calculation Debug:', {
@@ -153,10 +154,12 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
       // Fallback: If no closed P&L data, show message based on available trade data
       return {
         winRate: 0,
+        winRate30d: 0,
         totalTrades: 0,
         avgTradeSize: 0,
         totalVolume: 0,
         totalRealizedPnL: 0,
+        realizedPnL24h: 0,
         fallbackUsed: true,
         availableTradeCount: allTrades.length
       }
@@ -167,9 +170,28 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
     const totalTrades = allClosedPnL.length
     const winRate = totalTrades > 0 ? (winningTrades.length / totalTrades) * 100 : 0
 
+    // Calculate 30-day Win Rate
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
+    const closedPnL30d = allClosedPnL.filter(trade => {
+      const tradeTime = parseInt(trade.updatedTime || trade.createdTime || '0')
+      return tradeTime >= thirtyDaysAgo
+    })
+    const winningTrades30d = closedPnL30d.filter(trade => parseFloat(trade.closedPnl || '0') > 0)
+    const winRate30d = closedPnL30d.length > 0 ? (winningTrades30d.length / closedPnL30d.length) * 100 : 0
+
     // Calculate total realized P&L
     const totalRealizedPnL = allClosedPnL.reduce((sum, trade) => {
       return sum + parseFloat(trade.closedPnl || '0')
+    }, 0)
+
+    // Calculate 24h realized P&L
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000)
+    const realizedPnL24h = allClosedPnL.reduce((sum, trade) => {
+      const tradeTime = parseInt(trade.updatedTime || trade.createdTime || '0')
+      if (tradeTime >= twentyFourHoursAgo) {
+        return sum + parseFloat(trade.closedPnl || '0')
+      }
+      return sum
     }, 0)
 
     // Calculate average trade size from closed positions
@@ -181,28 +203,159 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
 
     return {
       winRate,
+      winRate30d,
       totalTrades,
       avgTradeSize,
       totalVolume: totalTradeVolume,
       totalRealizedPnL,
+      realizedPnL24h,
       fallbackUsed: false
     }
   }, [filteredData])
 
   const allPositions = filteredData.flatMap(account =>
-    account.positions.map(position => ({ ...position, accountName: account.name }))
+    account.positions.map(position => ({
+      ...position,
+      accountName: account.name,
+      exchange: 'Bybit' // Default to Bybit for now, will support multiple exchanges
+    }))
   )
 
-  const allRecentTrades = filteredData
-    .flatMap(account =>
-      account.trades.map(trade => ({ ...trade, accountName: account.name }))
-    )
-    .sort((a, b) => parseInt(b.execTime) - parseInt(a.execTime))
+  // Calculate combined equity curve from all accounts
+  const combinedEquityData = useMemo(() => {
+    if (filteredData.length === 0) return []
 
-  const tradesPerPage = 15
-  const totalTradesPages = Math.ceil(allRecentTrades.length / tradesPerPage)
-  const startIndex = currentTradesPage * tradesPerPage
-  const paginatedTrades = allRecentTrades.slice(startIndex, startIndex + tradesPerPage)
+    const currentTime = Date.now()
+    const timeframeDays = selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : selectedTimeframe === '90D' ? 90 : 180
+    const timeframeAgo = currentTime - (timeframeDays * 24 * 60 * 60 * 1000)
+
+    // Collect all closed P&L from all accounts
+    const allClosedPnL = filteredData.flatMap(account =>
+      (account.closedPnL || []).map(pnl => ({
+        ...pnl,
+        accountId: account.id,
+        accountName: account.name
+      }))
+    )
+
+    // Filter for selected timeframe and sort by time
+    const recentPnL = allClosedPnL
+      .filter(pnl => {
+        const closedTime = parseInt(pnl.updatedTime || pnl.createdTime)
+        return closedTime >= timeframeAgo
+      })
+      .sort((a, b) => parseInt(a.updatedTime || a.createdTime) - parseInt(b.updatedTime || b.createdTime))
+
+    if (recentPnL.length === 0) return []
+
+    // Calculate current total equity
+    const currentTotalEquity = filteredData.reduce((sum, account) => {
+      return sum + (account.balance ? parseFloat(account.balance.totalEquity) : 0)
+    }, 0)
+
+    // Build cumulative equity curve
+    const equityCurve = []
+
+    // Calculate starting equity by working backwards from current equity
+    const totalPnL = recentPnL.reduce((sum, pnl) => sum + parseFloat(pnl.closedPnl), 0)
+    const startingEquity = currentTotalEquity - totalPnL
+
+    equityCurve.push({
+      timestamp: timeframeAgo,
+      equity: Math.max(startingEquity, currentTotalEquity * 0.5) // Don't go below 50% of current
+    })
+
+    // Add points for each closed position across all accounts
+    let runningEquity = equityCurve[0].equity
+    recentPnL.forEach(pnl => {
+      runningEquity += parseFloat(pnl.closedPnl)
+      equityCurve.push({
+        timestamp: parseInt(pnl.updatedTime || pnl.createdTime),
+        equity: runningEquity
+      })
+    })
+
+    // Add current point
+    equityCurve.push({
+      timestamp: currentTime,
+      equity: currentTotalEquity
+    })
+
+    return equityCurve
+  }, [filteredData, selectedTimeframe])
+
+  // Calculate dynamic stats based on selected timeframe and equity data
+  const dynamicStats = useMemo(() => {
+    if (combinedEquityData.length === 0) {
+      return {
+        totalReturn: '0.0%',
+        sharpeRatio: '0.00',
+        maxDrawdown: '0.0%',
+        winRate: '0%',
+        bestDay: '$0',
+        volatility: '0.0%'
+      }
+    }
+
+    const startEquity = combinedEquityData[0]?.equity || 0
+    const endEquity = combinedEquityData[combinedEquityData.length - 1]?.equity || 0
+    const totalReturn = startEquity > 0 ? ((endEquity - startEquity) / startEquity) * 100 : 0
+
+    // Calculate daily returns for Sharpe ratio and volatility
+    const dailyReturns = []
+    for (let i = 1; i < combinedEquityData.length; i++) {
+      const prevEquity = combinedEquityData[i - 1].equity
+      const currentEquity = combinedEquityData[i].equity
+      if (prevEquity > 0) {
+        dailyReturns.push((currentEquity - prevEquity) / prevEquity)
+      }
+    }
+
+    // Sharpe ratio calculation
+    const avgReturn = dailyReturns.length > 0 ? dailyReturns.reduce((sum, r) => sum + r, 0) / dailyReturns.length : 0
+    const variance = dailyReturns.length > 1 ? dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / (dailyReturns.length - 1) : 0
+    const stdDev = Math.sqrt(variance)
+    const sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0 // Annualized
+
+    // Max drawdown calculation
+    let maxDrawdown = 0
+    let peak = combinedEquityData[0]?.equity || 0
+    for (const point of combinedEquityData) {
+      if (point.equity > peak) {
+        peak = point.equity
+      }
+      const drawdown = peak > 0 ? ((point.equity - peak) / peak) * 100 : 0
+      if (drawdown < maxDrawdown) {
+        maxDrawdown = drawdown
+      }
+    }
+
+    // Win rate and best day from P&L data
+    const timeframeDays = selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : selectedTimeframe === '90D' ? 90 : 180
+    const timeframeAgo = Date.now() - (timeframeDays * 24 * 60 * 60 * 1000)
+
+    const allClosedPnL = filteredData.flatMap(account => account.closedPnL || [])
+    const recentPnL = allClosedPnL.filter(pnl => {
+      const closedTime = parseInt(pnl.updatedTime || pnl.createdTime)
+      return closedTime >= timeframeAgo
+    })
+
+    const winningTrades = recentPnL.filter(pnl => parseFloat(pnl.closedPnl) > 0)
+    const winRate = recentPnL.length > 0 ? (winningTrades.length / recentPnL.length) * 100 : 0
+    const bestDay = recentPnL.length > 0 ? Math.max(...recentPnL.map(pnl => parseFloat(pnl.closedPnl))) : 0
+
+    // Volatility (annualized standard deviation)
+    const volatility = stdDev * Math.sqrt(252) * 100
+
+    return {
+      totalReturn: `${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%`,
+      sharpeRatio: sharpeRatio.toFixed(2),
+      maxDrawdown: `${maxDrawdown.toFixed(1)}%`,
+      winRate: `${winRate.toFixed(0)}%`,
+      bestDay: `${bestDay >= 0 ? '+' : ''}$${Math.abs(bestDay).toFixed(0)}`,
+      volatility: `${volatility.toFixed(1)}%`
+    }
+  }, [combinedEquityData, filteredData, selectedTimeframe])
 
   // Get real equity history from the store and filter by timeframe
   // const equityHistory = useMemo(() => {
@@ -388,11 +541,13 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
 
       {/* Data Range Summary */}
       {(() => {
-        // Check if any account has historical data
+        // Check if any account has historical data AND it's been loaded into the dashboard
         const hasHistoricalData = filteredData.some(account => {
           try {
-            const cache = bybitAPI.getCachedHistoricalData(account.id);
-            return cache && (cache.closedPnL?.length > 0 || cache.trades?.length > 0);
+            // Check if the account data actually contains historical P&L and trades
+            const hasLoadedHistoricalData = account.closedPnL && account.closedPnL.length > 10 &&
+                                          account.trades && account.trades.length > 10;
+            return hasLoadedHistoricalData;
           } catch (error) {
             return false;
           }
@@ -408,19 +563,54 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
               </svg>
               <span className="text-sm font-medium text-green-800 dark:text-green-200">
                 Historical Data Active: {(() => {
-                  const totalRecords = filteredData.reduce((sum, account) => {
-                    const cache = bybitAPI.getCachedHistoricalData(account.id);
-                    return sum + (cache ? cache.closedPnL.length + cache.trades.length : 0);
-                  }, 0);
-                  const estimatedDays = Math.min(180, Math.max(1, Math.round(totalRecords / 10)));
-                  return `~${estimatedDays} days`;
+                  // Calculate actual date range from the historical data
+                  let oldestTimestamp = Date.now();
+                  let newestTimestamp = 0;
+                  let totalRecords = 0;
+
+                  filteredData.forEach(account => {
+                    // Check closed P&L data
+                    if (account.closedPnL && account.closedPnL.length > 0) {
+                      account.closedPnL.forEach(pnl => {
+                        const timestamp = parseInt(pnl.updatedTime || pnl.createdTime || '0');
+                        if (timestamp > 0) {
+                          oldestTimestamp = Math.min(oldestTimestamp, timestamp);
+                          newestTimestamp = Math.max(newestTimestamp, timestamp);
+                        }
+                      });
+                      totalRecords += account.closedPnL.length;
+                    }
+
+                    // Check trades data
+                    if (account.trades && account.trades.length > 0) {
+                      account.trades.forEach(trade => {
+                        const timestamp = parseInt(trade.execTime || '0');
+                        if (timestamp > 0) {
+                          oldestTimestamp = Math.min(oldestTimestamp, timestamp);
+                          newestTimestamp = Math.max(newestTimestamp, timestamp);
+                        }
+                      });
+                      totalRecords += account.trades.length;
+                    }
+                  });
+
+                  // Calculate actual days from oldest to newest data
+                  if (newestTimestamp > oldestTimestamp) {
+                    const actualDays = Math.ceil((newestTimestamp - oldestTimestamp) / (24 * 60 * 60 * 1000));
+                    return `${actualDays} days`;
+                  } else {
+                    // Fallback to estimated days if no timestamps found
+                    const estimatedDays = Math.min(180, Math.max(1, Math.round(totalRecords / 10)));
+                    return `~${estimatedDays} days`;
+                  }
                 })()} of trading data loaded
               </span>
             </div>
             <span className="text-xs text-green-600 dark:text-green-400 font-mono">
               {filteredData.reduce((sum, account) => {
-                const cache = bybitAPI.getCachedHistoricalData(account.id);
-                return sum + (cache ? cache.closedPnL.length + cache.trades.length : 0);
+                const pnlCount = account.closedPnL ? account.closedPnL.length : 0;
+                const tradesCount = account.trades ? account.trades.length : 0;
+                return sum + pnlCount + tradesCount;
               }, 0).toLocaleString()} records
             </span>
           </div>
@@ -431,8 +621,9 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatsCard
           title="Total Equity"
-          value={`$${totalEquity.toLocaleString()}`}
-          change={totalPnL}
+          value={`$${totalEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          change={parseFloat(totalPnL.toFixed(2))}
+          timeframe="24h"
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
@@ -442,8 +633,9 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
 
         <StatsCard
           title="Unrealized PnL"
-          value={`$${totalPnL.toLocaleString()}`}
-          change={totalPnL}
+          value={`$${totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          change={parseFloat(totalPnL.toFixed(2))}
+          timeframe="Live"
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -453,8 +645,9 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
 
         <StatsCard
           title="Realized PnL"
-          value={calculateStats.fallbackUsed ? "No Closed P&L" : `$${calculateStats.totalRealizedPnL.toLocaleString()}`}
-          change={calculateStats.totalRealizedPnL}
+          value={calculateStats.fallbackUsed ? "No Closed P&L" : `$${calculateStats.realizedPnL24h.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          change={parseFloat(calculateStats.realizedPnL24h.toFixed(2))}
+          timeframe="24h"
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -464,8 +657,9 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
 
         <StatsCard
           title="Win Rate"
-          value={calculateStats.fallbackUsed ? "No Data" : `${calculateStats.winRate.toFixed(1)}%`}
-          change={calculateStats.fallbackUsed ? 0 : calculateStats.winRate - 50}
+          value={calculateStats.fallbackUsed ? "No Data" : `${calculateStats.winRate30d.toFixed(1)}%`}
+          change={calculateStats.fallbackUsed ? 0 : parseFloat((calculateStats.winRate30d - 50).toFixed(2))}
+          timeframe="30d"
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -477,6 +671,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           title="Total Trades"
           value={calculateStats.fallbackUsed ? `${calculateStats.availableTradeCount} Executions` : calculateStats.totalTrades.toString()}
           change={0}
+          timeframe="All Time"
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -630,8 +825,96 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
         </div>
       </div>
 
-      {/* Equity Chart - Temporarily disabled */}
+      {/* Combined Portfolio Equity Curve */}
+      {combinedEquityData.length > 0 && (
+        <div className="card p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                Combined Portfolio Equity Curve
+              </h2>
+              <p className="text-sm text-muted">Real-time performance across all accounts</p>
+            </div>
+            <div className="flex gap-2">
+              {(['7D', '30D', '90D', '180D'] as const).map((timeframe) => (
+                <button
+                  key={timeframe}
+                  onClick={() => setSelectedTimeframe(timeframe)}
+                  className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                    selectedTimeframe === timeframe
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  {timeframe}
+                </button>
+              ))}
+            </div>
+          </div>
 
+          {/* Comprehensive Stats Grid */}
+          <div className="grid grid-cols-6 gap-3 mb-4">
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg text-center">
+              <div className="text-xs text-green-600 dark:text-green-400 mb-1">Total Return</div>
+              <div className="text-sm font-bold text-green-700 dark:text-green-300">{dynamicStats.totalReturn}</div>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-center">
+              <div className="text-xs text-blue-600 dark:text-blue-400 mb-1">Sharpe Ratio</div>
+              <div className="text-sm font-bold text-blue-700 dark:text-blue-300">{dynamicStats.sharpeRatio}</div>
+            </div>
+            <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg text-center">
+              <div className="text-xs text-red-600 dark:text-red-400 mb-1">Max DD</div>
+              <div className="text-sm font-bold text-red-700 dark:text-red-300">{dynamicStats.maxDrawdown}</div>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg text-center">
+              <div className="text-xs text-purple-600 dark:text-purple-400 mb-1">Win Rate</div>
+              <div className="text-sm font-bold text-purple-700 dark:text-purple-300">{dynamicStats.winRate}</div>
+            </div>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg text-center">
+              <div className="text-xs text-yellow-600 dark:text-yellow-400 mb-1">Best Day</div>
+              <div className="text-sm font-bold text-yellow-700 dark:text-yellow-300">{dynamicStats.bestDay}</div>
+            </div>
+            <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg text-center">
+              <div className="text-xs text-orange-600 dark:text-orange-400 mb-1">Volatility</div>
+              <div className="text-sm font-bold text-orange-700 dark:text-orange-300">{dynamicStats.volatility}</div>
+            </div>
+          </div>
+
+          <div className="h-96 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900/50 dark:to-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={combinedEquityData}>
+                <defs>
+                  <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="timestamp" type="number" scale="time" domain={['dataMin', 'dataMax']} hide />
+                <YAxis domain={['dataMin', 'dataMax']} tick={{ fontSize: 11 }} tickFormatter={(value) => `$${(value/1000).toFixed(0)}k`} />
+                <CartesianGrid strokeDasharray="2 2" stroke="#e5e7eb" opacity={0.3} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const value = payload[0].value as number
+                      const timestamp = payload[0].payload.timestamp
+                      const date = new Date(timestamp)
+                      return (
+                        <div className="bg-white dark:bg-dark-800 border border-blue-200 dark:border-blue-600 rounded-lg shadow-xl p-3">
+                          <div className="font-bold text-blue-700 dark:text-blue-300 text-lg">${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-gray-600 dark:text-gray-400">{date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Area dataKey="equity" stroke="#3b82f6" strokeWidth={3} fill="url(#equityGradient)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+        </div>
+      )}
 
       {/* Account Cards */}
       {!selectedAccount && (
@@ -642,58 +925,12 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
         </div>
       )}
 
-      {/* Positions and Trades */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Open Positions ({allPositions.length})
-          </h2>
-          <PositionsTable positions={allPositions} />
-        </div>
-
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Recent Trades ({allRecentTrades.length})
-            </h2>
-            {totalTradesPages > 1 && (
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentTradesPage(Math.max(0, currentTradesPage - 1))}
-                  disabled={currentTradesPage === 0}
-                  className={`p-1 rounded text-xs transition-colors duration-200 ${
-                    currentTradesPage === 0
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-700'
-                  }`}
-                  title="Previous page"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
-                  {currentTradesPage + 1} of {totalTradesPages}
-                </span>
-                <button
-                  onClick={() => setCurrentTradesPage(Math.min(totalTradesPages - 1, currentTradesPage + 1))}
-                  disabled={currentTradesPage >= totalTradesPages - 1}
-                  className={`p-1 rounded text-xs transition-colors duration-200 ${
-                    currentTradesPage >= totalTradesPages - 1
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-700'
-                  }`}
-                  title="Next page"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-          <TradesTable trades={paginatedTrades} />
-        </div>
+      {/* Open Positions - Full Width */}
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Open Positions ({allPositions.length})
+        </h2>
+        <PositionsTable positions={allPositions} />
       </div>
     </div>
   )

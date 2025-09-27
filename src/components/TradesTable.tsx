@@ -1,11 +1,18 @@
 import { BybitTrade } from '../types/bybit'
+import { UnifiedTrade } from '../types/exchanges'
+import { exchangeFactory } from '../services/exchangeFactory'
 
 interface TradeWithAccount extends BybitTrade {
+  accountName: string
+  exchange?: string
+}
+
+interface UnifiedTradeWithAccount extends UnifiedTrade {
   accountName: string
 }
 
 interface TradesTableProps {
-  trades: TradeWithAccount[]
+  trades: (TradeWithAccount | UnifiedTradeWithAccount)[]
 }
 
 export const TradesTable = ({ trades }: TradesTableProps) => {
@@ -38,8 +45,10 @@ export const TradesTable = ({ trades }: TradesTableProps) => {
             <tr className="border-b border-gray-200 dark:border-dark-600">
               <th className="text-left py-3 font-medium text-muted">Symbol</th>
               <th className="text-left py-3 font-medium text-muted">Side</th>
+              <th className="text-left py-3 font-medium text-muted">Exchange</th>
               <th className="text-right py-3 font-medium text-muted">Qty</th>
               <th className="text-right py-3 font-medium text-muted">Price</th>
+              <th className="text-right py-3 font-medium text-muted">Value</th>
               <th className="text-right py-3 font-medium text-muted">Time</th>
             </tr>
           </thead>
@@ -47,6 +56,9 @@ export const TradesTable = ({ trades }: TradesTableProps) => {
             {trades.map((trade, index) => {
               const qty = parseFloat(trade.execQty)
               const price = parseFloat(trade.execPrice)
+              const value = qty * price
+
+              const exchange = (trade as UnifiedTradeWithAccount).exchange || (trade as TradeWithAccount).exchange || 'bybit'
 
               return (
                 <tr key={`${trade.execId}-${index}`} className="hover:bg-gray-50 dark:hover:bg-dark-700/50">
@@ -69,11 +81,24 @@ export const TradesTable = ({ trades }: TradesTableProps) => {
                       {trade.side}
                     </span>
                   </td>
+                  <td className="py-3">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      exchange === 'bybit' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                      exchange === 'toobit' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
+                      exchange === 'blofin' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' :
+                      'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300'
+                    }`}>
+                      {exchangeFactory.getExchangeDisplayName(exchange as any)}
+                    </span>
+                  </td>
                   <td className="py-3 text-right font-mono">
                     {qty.toFixed(4)}
                   </td>
                   <td className="py-3 text-right font-mono">
                     ${price.toFixed(2)}
+                  </td>
+                  <td className="py-3 text-right font-mono">
+                    ${value.toFixed(2)}
                   </td>
                   <td className="py-3 text-right text-xs text-muted">
                     {formatTime(trade.execTime)}

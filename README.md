@@ -64,36 +64,54 @@ A modern, open-source Windows desktop application for monitoring and analyzing m
 
 ## 📥 Installation
 
-### Quick Install (Recommended)
+### Build from Source
 
-1. **Download the installer**:
-   - Go to the [Releases](https://github.com/fishyink/Dashboard/releases) page
-   - Download the latest `Bybit-Dashboard-Setup-1.0.0.exe`
+Since this is an open-source project, you'll need to build the application yourself:
 
-2. **Run the installer**:
-   - Double-click the downloaded file
-   - Follow the installation wizard
-   - The app will be installed and available in your Start Menu
+#### Prerequisites
+- **Node.js 18+** and npm
+- **Git**
+- **Windows 10/11** (for Windows builds)
 
-3. **First Run**:
-   - Launch "Bybit Dashboard" from your Start Menu
-   - Try Demo Mode first or add your API keys
+#### Setup Instructions
 
-### Manual Installation
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-username/bybit-dashboard.git
+   cd bybit-dashboard
+   ```
 
-If you prefer to build from source:
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-```bash
-# Clone the repository
-git clone https://github.com/your-username/bybit-dashboard.git
-cd bybit-dashboard
+3. **Set up environment** (optional for demo):
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Bybit API credentials if you want to use real data
+   ```
 
-# Install dependencies
-npm install
+4. **Development mode**:
+   ```bash
+   npm run dev
+   ```
+   The app will open in development mode with hot reload.
 
-# Build and package
-npm run build:win
-```
+5. **Build for production**:
+   ```bash
+   # Build the application
+   npm run build
+
+   # Create Windows installer
+   npm run build:win
+   ```
+   The installer will be created in the `release/` directory.
+
+#### First Run
+
+- **Demo Mode**: Try the demo mode first to explore features
+- **Real Data**: Add your Bybit read-only API keys for live data
 
 ## 🔧 Setup & Configuration
 

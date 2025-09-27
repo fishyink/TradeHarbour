@@ -34,13 +34,23 @@ Thumbs.db
 logs
 *.log
 
-# Electron
+# Electron and Build Outputs
 app/
 out/
 *.dmg
 *.zip
 *.exe
 *.msi
+*.AppImage
+*.deb
+*.rpm
+*.tar.gz
+*.pkg
+
+# Test results
+test-results/
+playwright-report/
+coverage/
 
 # Temporary files
 *.tmp
@@ -51,3 +61,19 @@ out/
 
 # TypeScript
 *.tsbuildinfo
+
+# User data and sensitive information
+*.key
+*.secret
+*.pem
+config/local.json
+user-data/
+accounts-data/
+*.sqlite
+*.db
+
+# LocalStorage and cached data
+storage/
+localStorage/
+cache/
+cached-data/

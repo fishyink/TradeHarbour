@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { BybitAccount, AppSettings, storageService } from '../services/storage'
 import { AccountData } from '../types/bybit'
+import { ExchangeAccount, UnifiedAccountData } from '../types/exchanges'
 import { bybitAPI } from '../services/bybit'
+import { exchangeFactory } from '../services/exchangeFactory'
 
 export interface EquitySnapshot {
   timestamp: number
@@ -9,16 +11,25 @@ export interface EquitySnapshot {
   accounts: Record<string, number>
 }
 
+export interface CustomCard {
+  id: string
+  name: string
+  code: string
+  createdAt: number
+  isActive: boolean
+}
+
 interface AppState {
-  accounts: BybitAccount[]
-  accountsData: AccountData[]
+  accounts: ExchangeAccount[]
+  accountsData: UnifiedAccountData[]
   equityHistory: EquitySnapshot[]
+  customCards: CustomCard[]
   settings: AppSettings
   isLoading: boolean
   error: string | null
   lastRefresh: number
 
-  addAccount: (account: Omit<BybitAccount, 'id' | 'createdAt'>) => Promise<void>
+  addAccount: (account: Omit<ExchangeAccount, 'id' | 'createdAt'>) => Promise<void>
   removeAccount: (accountId: string) => Promise<void>
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>
   loadData: () => Promise<void>
@@ -28,12 +39,19 @@ interface AppState {
   clearEquityHistory: () => void
   forceClearEquityHistory: () => void
   backfillEquityHistory: () => Promise<void>
+  clearStaleAccountData: () => void
+  addCustomCard: (name: string, code: string) => Promise<void>
+  removeCustomCard: (cardId: string) => Promise<void>
+  toggleCustomCard: (cardId: string) => Promise<void>
+  editCustomCard: (cardId: string, name: string, code: string) => Promise<void>
+  updateCustomCardOrder: (cardIds: string[]) => Promise<void>
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   accounts: [],
   accountsData: [],
   equityHistory: [],
+  customCards: [],
   settings: {
     theme: 'dark',
     autoRefresh: true,
@@ -45,13 +63,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addAccount: async (accountData) => {
     try {
-      const account: BybitAccount = {
+      const account: ExchangeAccount = {
         ...accountData,
         id: `account-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         createdAt: Date.now(),
       }
 
-      await storageService.saveAccount(account)
+      await storageService.saveExchangeAccount(account)
 
       const { accounts } = get()
       set({ accounts: [...accounts, account] })
@@ -64,7 +82,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   removeAccount: async (accountId) => {
     try {
-      await storageService.deleteAccount(accountId)
+      await storageService.deleteExchangeAccount(accountId)
 
       const { accounts, accountsData } = get()
       set({
@@ -94,27 +112,33 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ isLoading: true, error: null })
 
       const [accounts, settings, equityHistory] = await Promise.all([
-        storageService.getAccounts(),
+        storageService.getExchangeAccounts(),
         storageService.getSettings(),
         storageService.getEquityHistory(),
       ])
 
-      set({ accounts, settings, equityHistory: equityHistory || [] })
+      // Load custom cards from localStorage for now (TODO: integrate with storageService)
+      const savedCards = localStorage.getItem('customCards')
+      const customCards = savedCards ? JSON.parse(savedCards) : []
+
+      set({ accounts, settings, equityHistory: equityHistory || [], customCards })
 
       if (accounts.length > 0) {
-        // Pre-populate historical cache for all accounts before refreshing data
+        // Pre-populate historical cache for Bybit accounts only (other exchanges don't have historical cache yet)
         await Promise.all(accounts.map(async (account) => {
           try {
-            const cachedData = await bybitAPI.preloadCachedData(account.id)
-            if (cachedData) {
-              console.log(`🔄 Pre-loaded cached historical data for ${account.name}`)
+            if (account.exchange === 'bybit') {
+              const cachedData = await bybitAPI.preloadCachedData(account.id)
+              if (cachedData) {
+                console.log(`🔄 Pre-loaded cached historical data for ${account.name}`)
 
-              // Automatically perform incremental update if data is stale
-              try {
-                await bybitAPI.updateAccountHistoricalData(account)
-                console.log(`📈 Updated historical data for ${account.name}`)
-              } catch (error) {
-                console.warn(`Failed to update historical data for ${account.name}:`, error)
+                // Automatically perform incremental update if data is stale
+                try {
+                  await bybitAPI.updateAccountHistoricalData(account as any)
+                  console.log(`📈 Updated historical data for ${account.name}`)
+                } catch (error) {
+                  console.warn(`Failed to update historical data for ${account.name}:`, error)
+                }
               }
             }
           } catch (error) {
@@ -122,6 +146,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }))
 
+        // Small delay to ensure cache is ready, then refresh data
+        await new Promise(resolve => setTimeout(resolve, 500))
         await get().refreshData()
       }
     } catch (error) {
@@ -142,23 +168,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
 
-      // Fetch current account data
-      const accountsData = await bybitAPI.fetchAllAccountsData(accounts)
+      // Fetch current account data using exchange factory
+      const accountsData = await exchangeFactory.fetchAllAccountsData(accounts)
 
-      // Try to enhance with historical data if available
+      // Try to enhance with historical data if available (only for Bybit accounts)
       const enhancedAccountsData = await Promise.all(
         accountsData.map(async (accountData) => {
           try {
-            const historicalCache = bybitAPI.getCachedHistoricalData(accountData.id)
-            if (historicalCache && historicalCache.isComplete) {
-              console.log(`📚 Using cached historical data for ${accountData.name}: ${historicalCache.closedPnL.length} closed P&L, ${historicalCache.trades.length} trades`)
+            if (accountData.exchange === 'bybit') {
+              const historicalCache = bybitAPI.getCachedHistoricalData(accountData.id)
+              if (historicalCache && historicalCache.isComplete) {
+                console.log(`📚 Using cached historical data for ${accountData.name}: ${historicalCache.closedPnL.length} closed P&L, ${historicalCache.trades.length} trades`)
 
-              // Merge historical data with current data
-              return {
-                ...accountData,
-                closedPnL: historicalCache.closedPnL,
-                trades: historicalCache.trades,
-                lastUpdated: Math.max(accountData.lastUpdated, historicalCache.lastUpdated)
+                // Merge historical data with current data
+                return {
+                  ...accountData,
+                  closedPnL: historicalCache.closedPnL.map(pnl => ({ ...pnl, exchange: 'bybit' as const })),
+                  trades: historicalCache.trades.map(trade => ({ ...trade, exchange: 'bybit' as const })),
+                  lastUpdated: Math.max(accountData.lastUpdated, historicalCache.lastUpdated)
+                }
               }
             }
           } catch (error) {
@@ -266,11 +294,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       const accountEquityHistory: Record<string, EquitySnapshot[]> = {}
 
       for (const account of accounts) {
-        console.log(`📈 Fetching historical data for ${account.name}...`)
+        console.log(`📈 Fetching historical data for ${account.name} (${account.exchange})...`)
 
         try {
-          // Get historical closed P&L data (up to 90 days)
-          const historicalPnL = await bybitAPI.getClosedPnL(account, 2000)
+          // Get historical closed P&L data (only for Bybit accounts currently)
+          let historicalPnL: any[] = []
+          if (account.exchange === 'bybit') {
+            historicalPnL = await bybitAPI.getClosedPnL(account as any, 2000)
+          } else {
+            console.log(`⚠️ Historical data backfill not yet supported for ${account.exchange}`)
+            continue
+          }
           console.log(`📊 Got ${historicalPnL.length} P&L records for ${account.name}`)
 
           // Debug P&L data sample
@@ -386,6 +420,111 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('🔄 Forcing equity history refresh...')
     // cachedHistoricalData = null
     // cacheKey = null
+  },
+
+  clearStaleAccountData: () => {
+    const { accounts, accountsData } = get()
+
+    // If accounts is empty but accountsData has data, clear the stale data
+    if (accounts.length === 0 && accountsData.length > 0) {
+      console.log('🧹 Clearing stale account data')
+      set({ accountsData: [] })
+    }
+
+    // If accountsData has more items than accounts, filter to match
+    if (accountsData.length > accounts.length) {
+      const accountIds = new Set(accounts.map(acc => acc.id))
+      const filteredAccountsData = accountsData.filter(data => accountIds.has(data.id))
+
+      if (filteredAccountsData.length !== accountsData.length) {
+        console.log('🧹 Filtering stale account data entries')
+        set({ accountsData: filteredAccountsData })
+      }
+    }
+  },
+
+  addCustomCard: async (name: string, code: string) => {
+    try {
+      const card: CustomCard = {
+        id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name,
+        code,
+        createdAt: Date.now(),
+        isActive: true,
+      }
+
+      const { customCards } = get()
+      const updatedCards = [...customCards, card]
+
+      set({ customCards: updatedCards })
+
+      // Save to localStorage for now (TODO: integrate with storageService)
+      localStorage.setItem('customCards', JSON.stringify(updatedCards))
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to add custom card' })
+    }
+  },
+
+  removeCustomCard: async (cardId: string) => {
+    try {
+      const { customCards } = get()
+      const updatedCards = customCards.filter(card => card.id !== cardId)
+
+      set({ customCards: updatedCards })
+
+      // Save to localStorage for now (TODO: integrate with storageService)
+      localStorage.setItem('customCards', JSON.stringify(updatedCards))
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to remove custom card' })
+    }
+  },
+
+  toggleCustomCard: async (cardId: string) => {
+    try {
+      const { customCards } = get()
+      const updatedCards = customCards.map(card =>
+        card.id === cardId ? { ...card, isActive: !card.isActive } : card
+      )
+
+      set({ customCards: updatedCards })
+
+      // Save to localStorage for now (TODO: integrate with storageService)
+      localStorage.setItem('customCards', JSON.stringify(updatedCards))
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to toggle custom card' })
+    }
+  },
+
+  editCustomCard: async (cardId: string, name: string, code: string) => {
+    try {
+      const { customCards } = get()
+      const updatedCards = customCards.map(card =>
+        card.id === cardId ? { ...card, name, code } : card
+      )
+
+      set({ customCards: updatedCards })
+
+      // Save to localStorage for now (TODO: integrate with storageService)
+      localStorage.setItem('customCards', JSON.stringify(updatedCards))
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to edit custom card' })
+    }
+  },
+
+  updateCustomCardOrder: async (cardIds: string[]) => {
+    try {
+      const { customCards } = get()
+      const updatedCards = cardIds.map(id =>
+        customCards.find(card => card.id === id)
+      ).filter(Boolean) as CustomCard[]
+
+      set({ customCards: updatedCards })
+
+      // Save to localStorage for now (TODO: integrate with storageService)
+      localStorage.setItem('customCards', JSON.stringify(updatedCards))
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to reorder custom cards' })
+    }
   },
 }))
 

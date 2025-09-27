@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 
 export const AccountHealthScore = () => {
   const { accountsData } = useAppStore()
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'30D' | '90D' | '180D'>('30D')
 
   // Calculate health score analytics from real data
   const healthAnalytics = useMemo(() => {
@@ -17,9 +18,13 @@ export const AccountHealthScore = () => {
       }
     }
 
-    // Limit data size to prevent hanging
-    const maxTrades = 10000
-    const limitedClosedPnL = allClosedPnL.slice(-maxTrades)
+    // Filter based on selected timeframe
+    const timeframeDays = selectedTimeframe === '30D' ? 30 : selectedTimeframe === '90D' ? 90 : 180
+    const timeframeAgo = Date.now() - (timeframeDays * 24 * 60 * 60 * 1000)
+    const limitedClosedPnL = allClosedPnL.filter(pnl => {
+      const pnlTime = parseInt(pnl.updatedTime || pnl.createdTime)
+      return pnlTime >= timeframeAgo
+    })
 
     // Symbol Dominance Analysis
     const symbolPnL = limitedClosedPnL.reduce((acc, trade) => {
@@ -73,10 +78,9 @@ export const AccountHealthScore = () => {
 
     // Account-by-account health scores for comparison
     const accountHealthScores = accountsData.map(account => {
-      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
       const accountClosedPnL = (account.closedPnL || []).filter(pnl => {
         const pnlTime = parseInt(pnl.updatedTime || pnl.createdTime)
-        return pnlTime >= thirtyDaysAgo
+        return pnlTime >= timeframeAgo
       })
 
       const accountWinRate = accountClosedPnL.length > 0 ? (accountClosedPnL.filter(t => parseFloat(t.closedPnl) > 0).length / accountClosedPnL.length) * 100 : 0
@@ -114,7 +118,7 @@ export const AccountHealthScore = () => {
       accountHealthScores,
       isEmpty: false
     }
-  }, [accountsData])
+  }, [accountsData, selectedTimeframe])
 
   if (accountsData.length === 0) {
     return (
@@ -168,12 +172,29 @@ export const AccountHealthScore = () => {
 
   return (
     <div className="card p-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-        <svg className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-        </svg>
-        Account Health Score
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+          <svg className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+          Account Health Score
+        </h2>
+        <div className="flex gap-2">
+          {(['30D', '90D', '180D'] as const).map((timeframe) => (
+            <button
+              key={timeframe}
+              onClick={() => setSelectedTimeframe(timeframe)}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                selectedTimeframe === timeframe
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              {timeframe}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Main Score Display */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -375,52 +396,34 @@ export const AccountHealthScore = () => {
 
           {/* Improvement Suggestions */}
           <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3 flex items-center">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3">
               Improvement Suggestions
             </h4>
             <div className="space-y-2">
               {!healthAnalytics.healthScoreBreakdown.winRate.achieved && (
-                <div className="flex items-start space-x-2">
-                  <span className="text-blue-600 dark:text-blue-400">🎯</span>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <strong>Improve win rate:</strong> Focus on higher probability setups to get above 50% win rate (+20 points)
-                  </p>
-                </div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Improve win rate:</strong> Focus on higher probability setups to get above 50% win rate
+                </p>
               )}
               {!healthAnalytics.healthScoreBreakdown.avgPnL.achieved && (
-                <div className="flex items-start space-x-2">
-                  <span className="text-blue-600 dark:text-blue-400">📈</span>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <strong>Increase profitability:</strong> Optimize position sizing and take-profit levels (+15 points)
-                  </p>
-                </div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Increase profitability:</strong> Optimize position sizing and take-profit levels
+                </p>
               )}
               {!healthAnalytics.healthScoreBreakdown.riskManagement.achieved && (
-                <div className="flex items-start space-x-2">
-                  <span className="text-blue-600 dark:text-blue-400">⚠️</span>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <strong>Reduce risk exposure:</strong> Keep unrealized losses below 5% of total equity (+10 points)
-                  </p>
-                </div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Reduce risk exposure:</strong> Keep unrealized losses below 5% of total equity
+                </p>
               )}
               {!healthAnalytics.healthScoreBreakdown.diversification.achieved && (
-                <div className="flex items-start space-x-2">
-                  <span className="text-blue-600 dark:text-blue-400">🔄</span>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <strong>Diversify trading pairs:</strong> Trade {4 - healthAnalytics.healthScoreBreakdown.diversification.value} more symbols for better diversification (+5 points)
-                  </p>
-                </div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Diversify trading pairs:</strong> Trade {4 - healthAnalytics.healthScoreBreakdown.diversification.value} more symbols for better diversification
+                </p>
               )}
               {healthAnalytics.healthScore >= 90 && (
-                <div className="flex items-start space-x-2">
-                  <span className="text-green-600 dark:text-green-400">🏆</span>
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    <strong>Excellent performance!</strong> You're maintaining top-tier trading discipline across all metrics.
-                  </p>
-                </div>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  <strong>Excellent performance!</strong> You're maintaining top-tier trading discipline across all metrics.
+                </p>
               )}
             </div>
           </div>
@@ -428,10 +431,7 @@ export const AccountHealthScore = () => {
           {/* Account Comparison */}
           {healthAnalytics.accountHealthScores && healthAnalytics.accountHealthScores.length > 1 && (
             <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <h4 className="text-sm font-medium text-purple-800 dark:text-purple-200 mb-3 flex items-center">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4" />
-                </svg>
+              <h4 className="text-sm font-medium text-purple-800 dark:text-purple-200 mb-3">
                 Account Performance Comparison
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -440,7 +440,7 @@ export const AccountHealthScore = () => {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {account.name}
-                        {index === 0 && <span className="ml-1 text-yellow-600">🏆</span>}
+                        {index === 0 && <span className="ml-1 text-yellow-600 text-xs">Best</span>}
                       </span>
                       <span className={`text-lg font-bold ${account.healthScore >= 80 ? 'text-green-600' : account.healthScore >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
                         {account.healthScore}
@@ -479,14 +479,8 @@ export const AccountHealthScore = () => {
             </div>
           )}
 
-          {/* Quick Historical Context */}
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-3 flex items-center">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Performance Context
-            </h4>
+          {/* Performance Context */}
+          <div className="mt-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
                 <div className="text-lg font-semibold text-gray-900 dark:text-white">

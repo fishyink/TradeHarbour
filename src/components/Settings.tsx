@@ -4,7 +4,6 @@ import { useAppStore } from '../store/useAppStore'
 export const Settings = () => {
   const { settings, updateSettings, accounts } = useAppStore()
   const [version, setVersion] = useState('')
-  const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
 
   useEffect(() => {
     if (window.electronAPI) {
@@ -218,172 +217,35 @@ export const Settings = () => {
           </div>
         </div>
 
-        {/* Support Development */}
+        {/* Connect & Support */}
         <div className="card p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <span className="text-2xl">🍺</span>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Support Trading Dashboard Development
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
-                "This dashboard started as a personal project to track my own trading performance across multiple Bybit accounts.
-                After 100+ hours of development, I'm sharing it with the community!"
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mb-4">
-                Built by a trader, for traders • Keep this tool subscription free and opensource
-              </p>
-
-              {/* Support Options - Moved inside blue box */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">💰 Support Options</h3>
-
-                {/* USDT Address */}
-                <div>
-                  <div className="mb-2">
-                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">USDT (TRC20):</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-white dark:bg-dark-800 rounded border border-blue-300 dark:border-blue-600 p-2">
-                      <div className="text-xs font-mono text-gray-900 dark:text-gray-100 break-all leading-tight">
-                        TKbvxKPKh6MZa4Qkj9AnDzj4AjM2CXT239
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText('TKbvxKPKh6MZa4Qkj9AnDzj4AjM2CXT239')
-                        setCopiedAddress('USDT')
-                        setTimeout(() => setCopiedAddress(null), 2000)
-                      }}
-                      className={`p-2 text-white rounded text-xs transition-all duration-200 ${
-                        copiedAddress === 'USDT'
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : 'bg-blue-600 hover:bg-blue-700'
-                      }`}
-                      title={copiedAddress === 'USDT' ? 'Copied!' : 'Copy USDT address'}
-                    >
-                      {copiedAddress === 'USDT' ? (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* BTC Address */}
-                <div>
-                  <div className="mb-2">
-                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Bitcoin (BTC):</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-white dark:bg-dark-800 rounded border border-blue-300 dark:border-blue-600 p-2">
-                      <div className="text-xs font-mono text-gray-900 dark:text-gray-100 break-all leading-tight">
-                        1MAZ6hDPPt7cn1rELBMyyLZsj6rgcHDQxr
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText('1MAZ6hDPPt7cn1rELBMyyLZsj6rgcHDQxr')
-                        setCopiedAddress('BTC')
-                        setTimeout(() => setCopiedAddress(null), 2000)
-                      }}
-                      className={`p-2 text-white rounded text-xs transition-all duration-200 ${
-                        copiedAddress === 'BTC'
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : 'bg-orange-600 hover:bg-orange-700'
-                      }`}
-                      title={copiedAddress === 'BTC' ? 'Copied!' : 'Copy BTC address'}
-                    >
-                      {copiedAddress === 'BTC' ? (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+                <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
+              </svg>
+              <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                Connect & Support
+              </span>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">🚀 Recent Updates</h3>
-                <ul className="text-xs text-muted space-y-1">
-                  <li>• Account Health Score with detailed analytics</li>
-                  <li>• 30-day equity curve visualization</li>
-                  <li>• Export functionality for all data</li>
-                  <li>• Enhanced trading statistics</li>
-                </ul>
+            <p className="text-xs text-purple-700 dark:text-purple-300">
+              Hit me up on Discord over at the <span className="font-medium">Daviddtech community</span> to report bugs or request features!
+            </p>
+            <div className="mt-3 space-y-1 text-xs">
+              <div className="text-purple-600 dark:text-purple-400">
+                Discord: <span className="font-medium">@fishyinking</span>
               </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">🎯 Development Goals</h3>
-                <ul className="text-xs text-muted space-y-1">
-                  <li>• Advanced portfolio analytics</li>
-                  <li>• Mobile responsive design</li>
-                  <li>• API for third-party integrations</li>
-                  <li>• Real-time alerts system</li>
-                </ul>
+              <div className="text-purple-600 dark:text-purple-400">
+                Website: <a
+                  href="https://daviddtech.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium hover:underline text-purple-700 dark:text-purple-300"
+                >
+                  daviddtech.com
+                </a>
               </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">🔜 Coming Soon</h3>
-                <ul className="text-xs text-muted space-y-1">
-                  <li>• <span className="text-purple-600 dark:text-purple-400 font-medium">Blofin</span> exchange support</li>
-                  <li>• <span className="text-blue-600 dark:text-blue-400 font-medium">Toobit</span> exchange support</li>
-                  <li>• Multi-exchange portfolio view</li>
-                  <li>• Cross-exchange analytics</li>
-                </ul>
-              </div>
-            </div>
-
-
-            <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
-                    <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
-                  </svg>
-                  <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
-                    Connect & Support
-                  </span>
-                </div>
-                <p className="text-xs text-purple-700 dark:text-purple-300">
-                  Hit me up on Discord over at the <span className="font-medium">Daviddtech community</span> to report bugs or request features!
-                </p>
-                <div className="mt-3 space-y-1 text-xs">
-                  <div className="text-purple-600 dark:text-purple-400">
-                    Discord: <span className="font-medium">@fishyinking</span>
-                  </div>
-                  <div className="text-purple-600 dark:text-purple-400">
-                    Website: <a
-                      href="https://daviddtech.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium hover:underline text-purple-700 dark:text-purple-300"
-                    >
-                      daviddtech.com
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center pt-2">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                All donations go directly to development • Thank you for your support! 🙏
-              </p>
             </div>
           </div>
         </div>
