@@ -1,13 +1,13 @@
 {
-  "name": "trade-harbor",
+  "name": "trade-harbour",
   "version": "1.3.1",
-  "description": "Trade Harbor - One harbor, one dashboard, all your trades. A unified trading command center for cryptocurrency exchanges.",
+  "description": "Trade Harbour - One harbour, one dashboard, all your trades. A unified trading command center for cryptocurrency exchanges.",
   "main": "dist/main.js",
-  "homepage": "https://github.com/fishyink/tradeharbor",
+  "homepage": "https://github.com/fishyink/TradeHarbour",
   "author": "fishyink",
   "repository": {
     "type": "git",
-    "url": "https://github.com/fishyink/tradeharbor.git"
+    "url": "https://github.com/fishyink/TradeHarbour.git"
   },
   "license": "MIT",
   "scripts": {
@@ -53,8 +53,8 @@
     "zustand": "^4.5.7"
   },
   "build": {
-    "appId": "com.tradeharbor.app",
-    "productName": "Trade Harbor",
+    "appId": "com.tradeharbour.app",
+    "productName": "Trade Harbour",
     "asar": false,
     "directories": {
       "output": "release"

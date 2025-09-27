@@ -37,9 +37,9 @@ export const Header = ({ currentPage, onPageChange }: HeaderProps) => {
             <div className="text-2xl">⚓</div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Trade Harbor
+                Trade Harbour
               </h1>
-              <p className="text-sm text-muted">One harbor, one dashboard, all your trades.</p>
+              <p className="text-sm text-muted">One harbour, one dashboard, all your trades.</p>
             </div>
           </div>
         </div>

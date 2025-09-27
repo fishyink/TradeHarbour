@@ -934,14 +934,14 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
         <PositionsTable positions={allPositions} />
       </div>
 
-      {/* Trade Harbor Footer */}
+      {/* Trade Harbour Footer */}
       <div className="mt-8 text-center py-6 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-center space-x-2 text-sm text-muted mb-2">
           <span>⚓</span>
-          <span>Trade Harbor v{packageInfo.version}</span>
+          <span>Trade Harbour v{packageInfo.version}</span>
           <span>•</span>
           <a
-            href="https://github.com/fishyink/tradeharbor"
+            href="https://github.com/fishyink/tradeharbour"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-primary transition-colors"
@@ -950,7 +950,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           </a>
         </div>
         <p className="text-xs text-muted">
-          One harbor, one dashboard, all your trades.
+          One harbour, one dashboard, all your trades.
         </p>
       </div>
     </div>

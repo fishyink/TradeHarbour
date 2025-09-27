@@ -1,21 +1,21 @@
-# ⚓ Trade Harbor
-**One harbor, one dashboard, all your trades.**
+# ⚓ Trade Harbour
+**One harbour, one dashboard, all your trades.**
 
 A modern, open-source desktop application for monitoring and analyzing multiple cryptocurrency trading accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
 
-![Trade Harbor](https://img.shields.io/badge/Trade%20Harbor-v1.3.1-blue.svg)
+![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.3.1-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
-![GitHub](https://img.shields.io/badge/GitHub-fishyink%2Ftradeharbor-black.svg)
+![GitHub](https://img.shields.io/badge/GitHub-fishyink%2Ftradeharbour-black.svg)
 
 ---
 
-## 🌊 What is Trade Harbor?
+## 🌊 What is Trade Harbour?
 
-Trade Harbor is your **unified trading command center** – bringing all your cryptocurrency accounts into one powerful, secure dashboard. Whether you're managing multiple exchange accounts or tracking complex trading strategies, Trade Harbor provides the insights and tools you need.
+Trade Harbour is your **unified trading command center** – bringing all your cryptocurrency accounts into one powerful, secure dashboard. Whether you're managing multiple exchange accounts or tracking complex trading strategies, Trade Harbour provides the insights and tools you need.
 
-### 🎯 **Why Trade Harbor?**
-- **One Harbor**: Centralized view of all your trading accounts
+### 🎯 **Why Trade Harbour?**
+- **One Harbour**: Centralized view of all your trading accounts
 - **One Dashboard**: Unified interface for comprehensive analysis
 - **All Your Trades**: Complete visibility across exchanges and strategies
 
@@ -70,10 +70,10 @@ Trade Harbor is your **unified trading command center** – bringing all your cr
 
 ### Installation
 
-1. **Clone Trade Harbor**
+1. **Clone Trade Harbour**
    ```bash
-   git clone https://github.com/fishyink/tradeharbor.git
-   cd tradeharbor
+   git clone https://github.com/fishyink/tradeharbour.git
+   cd tradeharbour
    ```
 
 2. **Install Dependencies**
@@ -86,7 +86,7 @@ Trade Harbor is your **unified trading command center** – bringing all your cr
    npm run dev
    ```
 
-   Trade Harbor will open with hot reload enabled for development.
+   Trade Harbour will open with hot reload enabled for development.
 
 4. **Build for Production** (Optional)
    ```bash
@@ -97,7 +97,7 @@ Trade Harbor is your **unified trading command center** – bringing all your cr
 
 **Option 1: Demo Mode** (Recommended)
 - Click "Demo Mode" to explore features with sample data
-- Perfect for understanding Trade Harbor's capabilities
+- Perfect for understanding Trade Harbour's capabilities
 - No API keys required
 
 **Option 2: Connect Your Accounts**
@@ -118,8 +118,8 @@ Trade Harbor is your **unified trading command center** – bringing all your cr
    - Create new API key with **READ-ONLY** permissions
    - Copy API Key and Secret
 
-2. **Add to Trade Harbor**:
-   - Open Trade Harbor → Accounts
+2. **Add to Trade Harbour**:
+   - Open Trade Harbour → Accounts
    - Click "Add Account"
    - Enter account name, API key, and secret
    - Select mainnet or testnet
@@ -138,9 +138,9 @@ Trade Harbor is your **unified trading command center** – bringing all your cr
 
 ### Smart Card Generator
 
-Trade Harbor includes an AI-powered card generation system:
+Trade Harbour includes an AI-powered card generation system:
 
-1. **Describe Your Idea**: Tell Trade Harbor what you want to visualize
+1. **Describe Your Idea**: Tell Trade Harbour what you want to visualize
 2. **Choose Size**: Select small, medium, or large card layout
 3. **Generate Prompt**: Get a complete AI prompt for ChatGPT/Claude
 4. **Paste & Activate**: Add the generated component to your dashboard
@@ -163,7 +163,7 @@ Trade Harbor includes an AI-powered card generation system:
 
 ### Project Structure
 ```
-trade-harbor/
+trade-harbour/
 ├── src/                    # React frontend source
 │   ├── components/         # UI components
 │   │   ├── CustomCards.tsx     # AI card generation system
@@ -203,7 +203,7 @@ npm test             # Run test suite
 | **OKX** | 🚧 Planned | Integration roadmap |
 | **Coinbase** | 🚧 Planned | API research phase |
 
-*Want to add your exchange? [Open an issue](https://github.com/fishyink/tradeharbor/issues) or contribute!*
+*Want to add your exchange? [Open an issue](https://github.com/fishyink/tradeharbour/issues) or contribute!*
 
 ---
 
@@ -230,8 +230,8 @@ npm test             # Run test suite
 - Try the Portfolio Overview template first
 
 ### Getting Help
-- **GitHub Issues**: [Report bugs and feature requests](https://github.com/fishyink/tradeharbor/issues)
-- **Discussions**: [Community support and ideas](https://github.com/fishyink/tradeharbor/discussions)
+- **GitHub Issues**: [Report bugs and feature requests](https://github.com/fishyink/tradeharbour/issues)
+- **Discussions**: [Community support and ideas](https://github.com/fishyink/tradeharbour/discussions)
 - **Documentation**: Check this README for detailed instructions
 
 ---
@@ -256,7 +256,7 @@ npm test             # Run test suite
 
 ## 📄 License
 
-Trade Harbor is open-source software licensed under the MIT License. See [LICENSE](LICENSE) for details.
+Trade Harbour is open-source software licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
@@ -270,17 +270,17 @@ Trade Harbor is open-source software licensed under the MIT License. See [LICENS
 
 ## ⚠️ Disclaimer
 
-Trade Harbor is for informational and analysis purposes only. Always verify data independently and never use this application for automated trading decisions. The developers are not responsible for any trading losses, API key security issues, or financial decisions made using this software.
+Trade Harbour is for informational and analysis purposes only. Always verify data independently and never use this application for automated trading decisions. The developers are not responsible for any trading losses, API key security issues, or financial decisions made using this software.
 
 ---
 
 <div align="center">
 
-**⚓ Welcome to Trade Harbor ⚓**
+**⚓ Welcome to Trade Harbour ⚓**
 
 *One harbor, one dashboard, all your trades.*
 
-**[🌟 Star on GitHub](https://github.com/fishyink/tradeharbor)** • **[📥 Download Latest](https://github.com/fishyink/tradeharbor/releases)** • **[🐛 Report Issues](https://github.com/fishyink/tradeharbor/issues)**
+**[🌟 Star on GitHub](https://github.com/fishyink/tradeharbour)** • **[📥 Download Latest](https://github.com/fishyink/tradeharbour/releases)** • **[🐛 Report Issues](https://github.com/fishyink/tradeharbour/issues)**
 
 *Built with ❤️ for the cryptocurrency trading community*
 
