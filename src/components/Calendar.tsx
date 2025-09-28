@@ -11,6 +11,21 @@ export const Calendar = () => {
   const [selectedAccount, setSelectedAccount] = useState<string>('')
   const [selectedSymbol, setSelectedSymbol] = useState<string>('')
   const [groupBy, setGroupBy] = useState<GroupBy>('close-date')
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null)
+
+
+  // Helper function to get ISO week number - MOVED BEFORE calendarData
+  const getWeekNumber = (date: Date): number => {
+    const tempDate = new Date(date.valueOf())
+    const dayNumber = (date.getDay() + 6) % 7
+    tempDate.setDate(tempDate.getDate() - dayNumber + 3)
+    const firstThursday = tempDate.valueOf()
+    tempDate.setMonth(0, 1)
+    if (tempDate.getDay() !== 4) {
+      tempDate.setMonth(0, 1 + ((4 - tempDate.getDay()) + 7) % 7)
+    }
+    return 1 + Math.ceil((firstThursday - tempDate.valueOf()) / 604800000)
+  }
 
   // Get unique symbols from all accounts
   const allSymbols = useMemo(() => {
@@ -81,13 +96,6 @@ export const Calendar = () => {
     return data
   }, [filteredData, viewType, groupBy])
 
-  // Helper function to get week number
-  const getWeekNumber = (date: Date): number => {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
-  }
-
   // Navigation functions
   const navigatePrevious = () => {
     const newDate = new Date(currentDate)
@@ -120,11 +128,11 @@ export const Calendar = () => {
   // Get cell style based on P&L
   const getCellStyle = (pnl: number) => {
     if (pnl > 0) {
-      return 'bg-green-600 dark:bg-green-700 border-green-500 dark:border-green-600 text-white'
+      return 'bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
     } else if (pnl < 0) {
-      return 'bg-red-600 dark:bg-red-700 border-red-500 dark:border-red-600 text-white'
+      return 'bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
     } else {
-      return 'bg-gray-600 dark:bg-gray-700 border-gray-500 dark:border-gray-600 text-gray-300'
+      return 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
     }
   }
 
@@ -161,9 +169,12 @@ export const Calendar = () => {
       days.push(
         <div
           key={dateKey}
+          onClick={() => isCurrentMonth && dayData.trades > 0 && setSelectedPeriod(dateKey)}
           className={`border rounded-lg p-3 min-h-[120px] transition-all duration-200 hover:shadow-lg ${
             isCurrentMonth ? getCellStyle(dayData.pnl) : 'bg-gray-400 dark:bg-gray-800 border-gray-300 dark:border-gray-700'
-          } ${!isCurrentMonth ? 'opacity-30' : ''}`}
+          } ${!isCurrentMonth ? 'opacity-30' : ''} ${
+            isCurrentMonth && dayData.trades > 0 ? 'cursor-pointer hover:scale-105' : ''
+          } ${selectedPeriod === dateKey ? 'ring-2 ring-blue-500' : ''}`}
         >
           <div className="text-sm font-medium mb-2">{current.getDate()}</div>
           {dayData.trades > 0 ? (
@@ -199,14 +210,17 @@ export const Calendar = () => {
     const year = currentDate.getFullYear()
     const weeks = []
 
-    for (let week = 1; week <= 52; week++) {
+    for (let week = 1; week <= 26; week++) {
       const weekKey = `${year}-W${week.toString().padStart(2, '0')}`
       const weekData = calendarData[weekKey] || { pnl: 0, trades: 0 }
 
       weeks.push(
         <div
           key={weekKey}
-          className={`border rounded-lg p-4 min-h-[120px] transition-all duration-200 hover:shadow-lg ${getCellStyle(weekData.pnl)}`}
+          onClick={() => weekData.trades > 0 && setSelectedPeriod(weekKey)}
+          className={`border rounded-lg p-4 min-h-[120px] transition-all duration-200 hover:shadow-lg ${getCellStyle(weekData.pnl)} ${
+            weekData.trades > 0 ? 'cursor-pointer hover:scale-105' : ''
+          } ${selectedPeriod === weekKey ? 'ring-2 ring-blue-500' : ''}`}
         >
           <div className="text-sm font-medium mb-2">Wk {week} • {year}</div>
           {weekData.trades > 0 ? (
@@ -223,7 +237,7 @@ export const Calendar = () => {
       )
     }
 
-    return <div className="grid grid-cols-7 gap-2">{weeks}</div>
+    return <div className="grid grid-cols-4 md:grid-cols-6 gap-4">{weeks}</div>
   }
 
   const renderMonthlyView = () => {
@@ -238,7 +252,10 @@ export const Calendar = () => {
       months.push(
         <div
           key={monthKey}
-          className={`border rounded-lg p-4 min-h-[120px] transition-all duration-200 hover:shadow-lg ${getCellStyle(monthData.pnl)}`}
+          onClick={() => monthData.trades > 0 && setSelectedPeriod(monthKey)}
+          className={`border rounded-lg p-4 min-h-[120px] transition-all duration-200 hover:shadow-lg ${getCellStyle(monthData.pnl)} ${
+            monthData.trades > 0 ? 'cursor-pointer hover:scale-105' : ''
+          } ${selectedPeriod === monthKey ? 'ring-2 ring-blue-500' : ''}`}
         >
           <div className="text-sm font-medium mb-2">{monthName}-{year}</div>
           {monthData.trades > 0 ? (
@@ -269,7 +286,10 @@ export const Calendar = () => {
       quarters.push(
         <div
           key={quarterKey}
-          className={`border rounded-lg p-6 min-h-[160px] transition-all duration-200 hover:shadow-lg ${getCellStyle(quarterData.pnl)}`}
+          onClick={() => quarterData.trades > 0 && setSelectedPeriod(quarterKey)}
+          className={`border rounded-lg p-6 min-h-[160px] transition-all duration-200 hover:shadow-lg ${getCellStyle(quarterData.pnl)} ${
+            quarterData.trades > 0 ? 'cursor-pointer hover:scale-105' : ''
+          } ${selectedPeriod === quarterKey ? 'ring-2 ring-blue-500' : ''}`}
         >
           <div className="text-lg font-medium mb-3">Q{quarter} {year}</div>
           {quarterData.trades > 0 ? (
@@ -296,6 +316,348 @@ export const Calendar = () => {
     } else {
       return currentDate.getFullYear().toString()
     }
+  }
+
+  // Get trades for selected period (works for daily, weekly, monthly, quarterly)
+  const getTradesForPeriod = (periodKey: string) => {
+    if (!selectedPeriod) return []
+
+    return filteredData.filter(trade => {
+      const tradeDate = groupBy === 'close-date'
+        ? new Date(parseInt(trade.updatedTime || trade.createdTime))
+        : new Date(parseInt(trade.createdTime))
+
+      let key: string
+      if (periodKey.includes('-W')) {
+        // Weekly key format: 2025-W14
+        const year = tradeDate.getFullYear()
+        const week = getWeekNumber(tradeDate)
+        key = `${year}-W${week.toString().padStart(2, '0')}`
+      } else if (periodKey.includes('-Q')) {
+        // Quarterly key format: 2025-Q1
+        const year = tradeDate.getFullYear()
+        const quarter = Math.floor(tradeDate.getMonth() / 3) + 1
+        key = `${year}-Q${quarter}`
+      } else if (periodKey.match(/^\d{4}-\d{2}$/)) {
+        // Monthly key format: 2025-09
+        key = `${tradeDate.getFullYear()}-${(tradeDate.getMonth() + 1).toString().padStart(2, '0')}`
+      } else {
+        // Daily key format: 2025-09-28
+        key = tradeDate.toISOString().split('T')[0]
+      }
+
+      return key === periodKey
+    }).sort((a, b) => {
+      const timeA = parseInt(a.updatedTime || a.createdTime)
+      const timeB = parseInt(b.updatedTime || b.createdTime)
+      return timeB - timeA // Most recent first
+    })
+  }
+
+  // Format duration between two timestamps
+  const formatDuration = (startTime: string, endTime: string) => {
+    const start = parseInt(startTime)
+    const end = parseInt(endTime)
+    const durationMs = end - start
+
+    const days = Math.floor(durationMs / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60))
+
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m`
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m`
+    } else {
+      return `${minutes}m`
+    }
+  }
+
+  // Render selected period details
+  const renderSelectedPeriodDetails = () => {
+    if (!selectedPeriod) return null
+
+    const trades = getTradesForPeriod(selectedPeriod)
+    if (trades.length === 0) return null
+
+    const totalPnl = trades.reduce((sum, trade) => sum + parseFloat(trade.closedPnl || '0'), 0)
+    const winningTrades = trades.filter(trade => parseFloat(trade.closedPnl || '0') > 0).length
+    const losingTrades = trades.filter(trade => parseFloat(trade.closedPnl || '0') < 0).length
+    const winRate = (winningTrades / trades.length) * 100
+
+    // Calculate average duration
+    const totalDuration = trades.reduce((sum, trade) => {
+      const start = parseInt(trade.createdTime)
+      const end = parseInt(trade.updatedTime || trade.createdTime)
+      return sum + (end - start)
+    }, 0)
+    const avgDuration = totalDuration / trades.length
+
+    // Long vs Short analysis
+    const longTrades = trades.filter(trade => trade.side === 'Buy')
+    const shortTrades = trades.filter(trade => trade.side === 'Sell')
+    const longWins = longTrades.filter(trade => parseFloat(trade.closedPnl || '0') > 0).length
+    const shortWins = shortTrades.filter(trade => parseFloat(trade.closedPnl || '0') > 0).length
+
+    // Format period display name
+    const getPeriodDisplayName = (key: string) => {
+      if (key.includes('-W')) {
+        const [year, week] = key.split('-W')
+        return `Week ${parseInt(week)} ${year}`
+      } else if (key.includes('-Q')) {
+        const [year, quarter] = key.split('-Q')
+        return `Q${quarter} ${year}`
+      } else if (key.match(/^\d{4}-\d{2}$/)) {
+        const [year, month] = key.split('-')
+        const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long' })
+        return `${monthName} ${year}`
+      } else {
+        const date = new Date(key)
+        return date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      }
+    }
+
+    // Generate cumulative PnL data for equity chart
+    const cumulativePnlData = trades.reduce((acc, trade, index) => {
+      const pnl = parseFloat(trade.closedPnl || '0')
+      const cumulative = index === 0 ? pnl : acc[acc.length - 1].cumulative + pnl
+      acc.push({ index: index + 1, cumulative })
+      return acc
+    }, [] as Array<{ index: number; cumulative: number }>)
+
+    return (
+      <div className="mt-8 bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            {getPeriodDisplayName(selectedPeriod)} Trades
+          </h3>
+          <div className="flex items-center space-x-4">
+            <div className="flex space-x-2">
+              <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Overview
+              </button>
+              <button className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                Notes
+              </button>
+            </div>
+            <button
+              onClick={() => setSelectedPeriod(null)}
+              className="px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
+            >
+              Close
+            </button>
+            <button className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+              📥 Download CSV
+            </button>
+          </div>
+        </div>
+
+        {/* PnL Chart */}
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg p-6">
+          <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">PNL ($)</h4>
+          <div className="h-48 bg-gray-50 dark:bg-gray-900 rounded-lg relative overflow-hidden">
+            {cumulativePnlData.length > 1 ? (
+              <svg
+                className="w-full h-full absolute inset-0"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                style={{ background: 'transparent' }}
+              >
+                <defs>
+                  <linearGradient id={`pnlGradient-${selectedPeriod}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor={totalPnl >= 0 ? "#10B981" : "#EF4444"} stopOpacity="0.2"/>
+                    <stop offset="100%" stopColor={totalPnl >= 0 ? "#10B981" : "#EF4444"} stopOpacity="0.05"/>
+                  </linearGradient>
+                </defs>
+
+                {/* Calculate path points */}
+                {(() => {
+                  const minPnl = Math.min(...cumulativePnlData.map(p => p.cumulative))
+                  const maxPnl = Math.max(...cumulativePnlData.map(p => p.cumulative))
+                  const range = Math.max(maxPnl - minPnl, 1)
+
+                  const pathPoints = cumulativePnlData.map((point, index) => {
+                    const x = (index / (cumulativePnlData.length - 1)) * 100
+                    const y = 100 - ((point.cumulative - minPnl) / range) * 80 - 10
+                    return `${x},${y}`
+                  }).join(' ')
+
+                  const pathData = `M ${pathPoints.split(' ').map((point, index) =>
+                    `${index === 0 ? '' : 'L '}${point}`
+                  ).join(' ')}`
+
+                  const fillPath = `${pathData} L 100,100 L 0,100 Z`
+
+                  return (
+                    <>
+                      {/* Fill area */}
+                      <path
+                        d={fillPath}
+                        fill={`url(#pnlGradient-${selectedPeriod})`}
+                      />
+                      {/* Line */}
+                      <path
+                        d={pathData}
+                        stroke={totalPnl >= 0 ? "#10B981" : "#EF4444"}
+                        strokeWidth="0.5"
+                        fill="none"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      {/* End point */}
+                      <circle
+                        cx={100}
+                        cy={100 - ((cumulativePnlData[cumulativePnlData.length - 1].cumulative - minPnl) / range) * 80 - 10}
+                        r="1"
+                        fill={totalPnl >= 0 ? "#10B981" : "#EF4444"}
+                      />
+                    </>
+                  )
+                })()}
+              </svg>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                Not enough data for chart
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Overview Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">📊</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Total Trades</div>
+            <div className="text-lg font-bold">{trades.length} <span className="text-sm font-normal text-green-600">{winningTrades}W</span><span className="text-sm font-normal text-red-600">/{losingTrades}L</span></div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+            <div className="text-lg font-bold">PNL ($)</div>
+            <div className={`text-2xl font-bold ${totalPnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+            <div className="text-lg font-bold">Win Rate</div>
+            <div className="text-2xl font-bold text-blue-600">{winRate.toFixed(1)}%</div>
+            <div className="text-sm text-gray-500">{winningTrades}W/{losingTrades}L</div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+            <div className="text-lg font-bold">Avg Trade Duration</div>
+            <div className="text-lg font-bold">
+              {formatDuration('0', avgDuration.toString())}
+            </div>
+          </div>
+        </div>
+
+        {/* Long/Short Analysis */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border-l-4 border-green-500">
+            <div className="text-lg font-bold text-green-600">Longs Ratio</div>
+            <div className="text-2xl font-bold">{longTrades.length > 0 ? ((longTrades.length / trades.length) * 100).toFixed(1) : '0'}%</div>
+            <div className="text-sm text-gray-500">{longTrades.length > 0 ? `${((longWins / longTrades.length) * 100).toFixed(1)}% WR` : 'No long trades'} • ({longTrades.length})</div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border-l-4 border-red-500">
+            <div className="text-lg font-bold text-red-600">Shorts Ratio</div>
+            <div className="text-2xl font-bold">{shortTrades.length > 0 ? ((shortTrades.length / trades.length) * 100).toFixed(1) : '0'}%</div>
+            <div className="text-sm text-gray-500">{shortTrades.length > 0 ? `${((shortWins / shortTrades.length) * 100).toFixed(1)}% WR` : 'No short trades'} • ({shortTrades.length})</div>
+          </div>
+        </div>
+
+        {/* Trades Table */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '11%' }} />
+              </colgroup>
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Symbol/Size</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Open</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Duration</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Close</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Realised PNL</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                {trades.map((trade, index) => {
+                  const pnl = parseFloat(trade.closedPnl || '0')
+                  const account = accountsData.find(acc => acc.closedPnL?.some(t => t.id === trade.id))
+
+                  return (
+                    <tr key={trade.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-3 py-3 text-sm">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {account?.name || 'Unknown'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">{trade.id}</td>
+                      <td className="px-3 py-3 text-sm">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{trade.symbol}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{trade.side === 'Buy' ? '+' : ''}{trade.cumExecQty}</div>
+                      </td>
+                      <td className="px-3 py-3 text-sm">
+                        <div className="font-medium">${parseFloat(trade.avgEntryPrice || '0').toFixed(2)}@</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(parseInt(trade.createdTime)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(parseInt(trade.createdTime)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-sm">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                          {formatDuration(trade.createdTime, trade.updatedTime || trade.createdTime)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-sm">
+                        <div className="font-medium">${parseFloat(trade.avgExitPrice || '0').toFixed(2)}@</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(parseInt(trade.updatedTime || trade.createdTime)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(parseInt(trade.updatedTime || trade.createdTime)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-sm">
+                        <span className={`font-bold ${pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-sm">
+                        <div className="flex space-x-1">
+                          <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -394,6 +756,9 @@ export const Calendar = () => {
       <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
         {renderCalendarGrid()}
       </div>
+
+      {/* Selected Period Details */}
+      {renderSelectedPeriodDetails()}
     </div>
   )
 }
