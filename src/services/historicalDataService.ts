@@ -27,10 +27,10 @@ interface HistoricalFetchProgress {
 export class HistoricalDataService {
   private readonly STORAGE_KEY = 'bybit_historical_cache'
   private readonly ENCRYPTION_KEY = 'bybit_dashboard_encryption_key_v1'
-  private readonly MAX_DAYS_HISTORY = 180 // 6 months
+  private readonly INITIAL_DAYS_HISTORY = 180 // Initial 6 months fetch
   private readonly CHUNK_SIZE_DAYS = 7
-  private readonly CACHE_EXPIRY_HOURS = 6
-  private readonly INCREMENTAL_UPDATE_HOURS = 12 // How often to check for new data
+  private readonly CACHE_EXPIRY_HOURS = 24 // Increased to 24 hours for development stability
+  private readonly INCREMENTAL_UPDATE_HOURS = 6 // Check for new data every 6 hours
 
   private progressCallbacks: Set<(progress: HistoricalFetchProgress) => void> = new Set()
 
@@ -68,6 +68,18 @@ export class HistoricalDataService {
     const cacheAge = now - cache.lastUpdated
     const maxAge = this.CACHE_EXPIRY_HOURS * 60 * 60 * 1000
 
+    // In development mode, be more lenient with cache validation
+    const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+
+    console.log(`🔍 Cache validation for account ${cache.accountId}:`, {
+      cacheAge: `${Math.round(cacheAge / (60 * 60 * 1000))} hours`,
+      maxAge: `${this.CACHE_EXPIRY_HOURS} hours`,
+      isComplete: cache.isComplete,
+      isValid: cacheAge < maxAge && cache.isComplete,
+      isDevelopment,
+      totalDays: cache.dataRange.totalDays
+    })
+
     return cacheAge < maxAge && cache.isComplete
   }
 
@@ -76,6 +88,13 @@ export class HistoricalDataService {
     const now = Date.now()
     const timeSinceUpdate = now - cache.lastUpdated
     const updateInterval = this.INCREMENTAL_UPDATE_HOURS * 60 * 60 * 1000
+
+    console.log(`🔄 Incremental update check for account ${cache.accountId}:`, {
+      timeSinceUpdate: `${Math.round(timeSinceUpdate / (60 * 60 * 1000))} hours`,
+      updateInterval: `${this.INCREMENTAL_UPDATE_HOURS} hours`,
+      needsUpdate: timeSinceUpdate >= updateInterval,
+      lastUpdate: new Date(cache.lastUpdated).toISOString()
+    })
 
     return timeSinceUpdate >= updateInterval
   }
@@ -110,13 +129,13 @@ export class HistoricalDataService {
   }
 
   // Generate date chunks for historical retrieval
-  private generateDateChunks(): Array<{ start: number; end: number; index: number }> {
+  private generateDateChunks(maxDays: number = this.INITIAL_DAYS_HISTORY): Array<{ start: number; end: number; index: number }> {
     const now = Date.now()
     const chunks: Array<{ start: number; end: number; index: number }> = []
     const chunkSizeMs = this.CHUNK_SIZE_DAYS * 24 * 60 * 60 * 1000
-    const totalMs = this.MAX_DAYS_HISTORY * 24 * 60 * 60 * 1000
+    const totalMs = maxDays * 24 * 60 * 60 * 1000
 
-    for (let i = 0; i < Math.ceil(this.MAX_DAYS_HISTORY / this.CHUNK_SIZE_DAYS); i++) {
+    for (let i = 0; i < Math.ceil(maxDays / this.CHUNK_SIZE_DAYS); i++) {
       const chunkEndTime = now - (i * chunkSizeMs)
       const chunkStartTime = Math.max(chunkEndTime - chunkSizeMs, now - totalMs)
 
@@ -255,9 +274,9 @@ export class HistoricalDataService {
       trades: allTrades,
       lastUpdated: Date.now(),
       dataRange: {
-        startDate: new Date(Date.now() - (this.MAX_DAYS_HISTORY * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10),
+        startDate: new Date(Date.now() - (this.INITIAL_DAYS_HISTORY * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10),
         endDate: new Date().toISOString().slice(0, 10),
-        totalDays: this.MAX_DAYS_HISTORY,
+        totalDays: this.INITIAL_DAYS_HISTORY,
         chunksRetrieved: totalChunks
       },
       isComplete: true
@@ -279,7 +298,7 @@ export class HistoricalDataService {
     console.log(`🎉 Historical fetch complete for ${account.name}:`, {
       closedPnL: allClosedPnL.length,
       trades: allTrades.length,
-      totalDays: this.MAX_DAYS_HISTORY,
+      totalDays: this.INITIAL_DAYS_HISTORY,
       cacheSize: JSON.stringify(cache).length
     })
 
@@ -333,12 +352,12 @@ export class HistoricalDataService {
         dataRange: {
           ...existingCache.dataRange,
           endDate: new Date().toISOString().slice(0, 10),
-          // Extend total days if we have data older than 180 days
+          // Always increment total days as time passes, not capped at 180
           totalDays: Math.max(
-            existingCache.dataRange.totalDays,
+            existingCache.dataRange.totalDays + 1, // Minimum increment of 1 day
             mergedClosedPnL.length > 0
               ? Math.ceil((now - Math.min(...mergedClosedPnL.map(p => parseInt(p.updatedTime || p.createdTime)))) / (24 * 60 * 60 * 1000))
-              : existingCache.dataRange.totalDays
+              : existingCache.dataRange.totalDays + 1
           )
         }
       }
