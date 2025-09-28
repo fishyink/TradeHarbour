@@ -117,15 +117,278 @@ export const CustomDashboard = () => {
     )
   }
 
+  // Render 7-Day Account P&L Card
+  const renderSevenDayCard = (card: any) => {
+    const { accountsData } = useAppStore()
+
+    if (!accountsData) {
+      return (
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            7-Day Account P&L
+          </h2>
+          <div className="text-muted">Loading account data...</div>
+        </div>
+      )
+    }
+
+    const metrics = useMemo(() => {
+      if (!Array.isArray(accountsData) || accountsData.length === 0) {
+        return []
+      }
+
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+
+      return accountsData.map(account => {
+        const trades7d = (account.closedPnL || []).filter(trade =>
+          parseInt(trade.updatedTime) >= sevenDaysAgo
+        )
+
+        const pnl7d = trades7d.reduce(
+          (sum, trade) => sum + parseFloat(trade.closedPnl || '0'),
+          0
+        )
+
+        const volume7d = trades7d.reduce(
+          (sum, trade) => sum + parseFloat(trade.cumEntryValue || '0'),
+          0
+        )
+
+        const pnlPercent =
+          volume7d > 0 ? (pnl7d / volume7d) * 100 : 0
+
+        return {
+          name: account.name,
+          pnl7d,
+          volume7d,
+          pnlPercent
+        }
+      })
+    }, [accountsData])
+
+    return (
+      <div className="card p-6 bg-white dark:bg-dark-800 border border-gray-200 dark:border-gray-600 max-w-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            7-Day Account P&L
+          </h2>
+          <div className="text-primary">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {!accountsData.length ? (
+          <div className="text-muted">No account data available.</div>
+        ) : (
+          <div className="space-y-4">
+            {metrics.map((acct) => (
+              <div
+                key={acct.name}
+                className="border-b border-gray-200 dark:border-gray-600 pb-3 last:border-0"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-muted">{acct.name}</span>
+                  <span
+                    className={`font-semibold ${
+                      acct.pnl7d >= 0 ? 'text-success' : 'text-danger'
+                    }`}
+                  >
+                    {acct.pnl7d >= 0 ? '+' : ''}
+                    ${acct.pnl7d.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span className="text-muted">
+                    Volume: ${acct.volume7d.toFixed(2)}
+                  </span>
+                  <span
+                    className={`font-semibold ${
+                      acct.pnlPercent >= 0 ? 'text-success' : 'text-danger'
+                    }`}
+                  >
+                    {acct.pnlPercent >= 0 ? '+' : ''}
+                    {acct.pnlPercent.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Render Equity Chart Card (7-Day Portfolio Overview)
+  const renderEquityChartCard = (card: any) => {
+    const { accountsData } = useAppStore()
+
+    const { sevenDayEquityPoints, topAssets, loading, error } = useMemo(() => {
+      if (!accountsData) {
+        return { sevenDayEquityPoints: [], topAssets: [], loading: true, error: null }
+      }
+      try {
+        const now = Date.now()
+        const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
+
+        // Build daily buckets (UTC midnight) for last 7 days.
+        const dailyBuckets: Record<string, number> = {}
+        for (let i = 0; i < 7; i++) {
+          const day = new Date(now - i * 24 * 60 * 60 * 1000)
+          const key = day.toISOString().slice(0, 10)
+          dailyBuckets[key] = 0
+        }
+
+        // For simplicity we only have current equity. In real scenario you'd store historical points.
+        const currentTotalEquity = accountsData.reduce(
+          (sum, acc) => sum + parseFloat(acc.balance?.totalEquity || '0'),
+          0
+        )
+        Object.keys(dailyBuckets).forEach(k => {
+          dailyBuckets[k] = currentTotalEquity
+        })
+
+        const sevenDayEquityPoints = Object.entries(dailyBuckets)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, value]) => ({ date, value }))
+
+        // Top Performing Assets over 7 days
+        const allTrades = accountsData.flatMap(acc =>
+          (acc.closedPnL || []).filter(
+            t => parseInt(t.updatedTime) >= sevenDaysAgo
+          )
+        )
+
+        const profitBySymbol: Record<string, number> = {}
+        allTrades.forEach(trade => {
+          const pnl = parseFloat(trade.closedPnl || '0')
+          profitBySymbol[trade.symbol] = (profitBySymbol[trade.symbol] || 0) + pnl
+        })
+
+        const topAssets = Object.entries(profitBySymbol)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([symbol, profit]) => ({ symbol, profit }))
+
+        return { sevenDayEquityPoints, topAssets, loading: false, error: null }
+      } catch (err) {
+        return { sevenDayEquityPoints: [], topAssets: [], loading: false, error: (err as Error).message }
+      }
+    }, [accountsData])
+
+    if (loading) {
+      return (
+        <div className="card p-6">
+          <p className="text-muted">Loading data...</p>
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="card p-6">
+          <p className="text-danger">Error: {error}</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            7-Day Portfolio Overview
+          </h2>
+        </div>
+
+        {/* === Equity Curve === */}
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            Total Equity (last 7 days)
+          </h3>
+          <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg relative overflow-hidden">
+            {/* Simple SVG line chart without external deps */}
+            <svg className="absolute inset-0 w-full h-full">
+              {sevenDayEquityPoints.length > 1 && (
+                <polyline
+                  fill="none"
+                  stroke="currentColor"
+                  className="text-primary"
+                  strokeWidth="2"
+                  points={sevenDayEquityPoints.map((p, i) => {
+                    const x = (i / (sevenDayEquityPoints.length - 1)) * 100
+                    const max = Math.max(...sevenDayEquityPoints.map(pt => pt.value))
+                    const min = Math.min(...sevenDayEquityPoints.map(pt => pt.value))
+                    const range = max - min || 1
+                    const y = 100 - ((p.value - min) / range) * 100
+                    return `${x}%,${y}%`
+                  }).join(' ')}
+                />
+              )}
+            </svg>
+          </div>
+        </div>
+
+        {/* === Top Assets === */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+            Top Performing Assets (7 days)
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {topAssets.length === 0 && (
+              <p className="text-muted col-span-full">No trades in the last 7 days.</p>
+            )}
+            {topAssets.map(asset => (
+              <div key={asset.symbol} className="text-center">
+                <div className="text-sm text-muted">{asset.symbol}</div>
+                <div className={`text-lg font-bold ${asset.profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                  {asset.profit >= 0 ? '+' : ''}${asset.profit.toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Dynamic component renderer with pattern matching
   const renderDynamicCard = (card: any) => {
     try {
-      // Check if this is a known component type first - be more flexible with pattern matching
-      if (card.code.includes('Portfolio Overview') ||
-          (card.code.includes('totalEquity') && card.code.includes('balance')) ||
-          (card.code.includes('accountsData') && card.code.includes('reduce')) ||
-          card.name.toLowerCase().includes('portfolio')) {
+      // More specific pattern matching to avoid conflicts
+      // Check for equity chart cards FIRST (most specific)
+      if (card.code.includes('SevenDayEquityCard') ||
+          card.code.includes('sevenDayEquityPoints') ||
+          card.code.includes('Top Performing Assets') ||
+          card.code.includes('dailyBuckets') ||
+          card.code.includes('profitBySymbol')) {
+        return renderEquityChartCard(card)
+      }
+
+      // Check for portfolio table cards (second most specific)
+      if (card.code.includes('Portfolio PnL Overview') ||
+          card.code.includes('Total Portfolio Value') ||
+          card.code.includes('90 Day PnL') ||
+          (card.code.includes('table') && card.code.includes('Account Value')) ||
+          card.code.includes('accountMetrics')) {
         return renderPortfolioOverview()
+      }
+
+      // Check for 7-Day Account P&L cards (least specific, check last)
+      if (card.code.includes('7-Day Account P&L') ||
+          (card.code.includes('sevenDaysAgo') && !card.code.includes('sevenDayEquityPoints')) ||
+          (card.name.toLowerCase().includes('7-day') && !card.code.includes('Top Performing Assets'))) {
+        return renderSevenDayCard(card)
       }
 
       // Parse card code to extract component data
