@@ -362,11 +362,131 @@ export const CustomDashboard = () => {
     )
   }
 
+  // Render Top 5 Assets Card
+  const renderTopAssetsCard = (card: any) => {
+    const { accountsData } = useAppStore()
+
+    const { topAssets, loading, error } = useMemo(() => {
+      if (!accountsData) {
+        return { topAssets: [], loading: true, error: null }
+      }
+
+      try {
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+
+        // Collect all trades updated within last 7 days
+        const recentTrades = accountsData.flatMap(account =>
+          (account.closedPnL || []).filter(
+            t => parseInt(t.updatedTime) >= sevenDaysAgo
+          )
+        )
+
+        // Aggregate P&L and entry value per symbol to calculate percentage
+        const stats: Record<string, { profit: number; entry: number }> = {}
+
+        recentTrades.forEach(trade => {
+          const pnl = parseFloat(trade.closedPnl || '0')
+          const entryValue = parseFloat(trade.cumEntryValue || '0')
+          if (!stats[trade.symbol]) {
+            stats[trade.symbol] = { profit: 0, entry: 0 }
+          }
+          stats[trade.symbol].profit += pnl
+          stats[trade.symbol].entry += entryValue
+        })
+
+        // Convert to array with percentage profit
+        const topAssets = Object.entries(stats)
+          .map(([symbol, { profit, entry }]) => ({
+            symbol,
+            percentage: entry > 0 ? (profit / entry) * 100 : 0
+          }))
+          .sort((a, b) => b.percentage - a.percentage)
+          .slice(0, 5)
+
+        return { topAssets, loading: false, error: null }
+      } catch (err) {
+        return { topAssets: [], loading: false, error: (err as Error).message }
+      }
+    }, [accountsData])
+
+    if (loading) {
+      return (
+        <div className="card p-6">
+          <p className="text-muted">Loading top assets...</p>
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="card p-6">
+          <p className="text-danger">Error: {error}</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+            {/* Trophy Icon */}
+            <svg
+              className="w-5 h-5 mr-2 text-primary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 21h8M12 17v4m6-14h2a2 2 0 012 2v1a5 5 0 01-5 5 5 5 0 01-5-5V5h2m-6 0h2v3a5 5 0 01-5 5 5 5 0 01-5-5V5h2"
+              />
+            </svg>
+            Top 5 Assets – 7 Days
+          </h2>
+        </div>
+
+        <div className="space-y-3">
+          {topAssets.length === 0 && (
+            <p className="text-muted">No trades in the last 7 days.</p>
+          )}
+          {topAssets.map(asset => (
+            <div
+              key={asset.symbol}
+              className="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-1"
+            >
+              <span className="text-gray-900 dark:text-white font-medium">
+                {asset.symbol}
+              </span>
+              <span
+                className={`font-semibold ${
+                  asset.percentage >= 0 ? 'text-success' : 'text-danger'
+                }`}
+              >
+                {asset.percentage >= 0 ? '+' : ''}
+                {asset.percentage.toFixed(2)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   // Dynamic component renderer with pattern matching
   const renderDynamicCard = (card: any) => {
     try {
       // More specific pattern matching to avoid conflicts
-      // Check for equity chart cards FIRST (most specific)
+      // Check for Top Assets cards FIRST (most specific)
+      if (card.code.includes('TopAssets7DaysCard') ||
+          card.code.includes('Top 5 Assets') ||
+          card.code.includes('Trophy Icon') ||
+          (card.code.includes('percentage') && card.code.includes('recentTrades') && card.code.includes('stats'))) {
+        return renderTopAssetsCard(card)
+      }
+
+      // Check for equity chart cards SECOND (second most specific)
       if (card.code.includes('SevenDayEquityCard') ||
           card.code.includes('sevenDayEquityPoints') ||
           card.code.includes('Top Performing Assets') ||
@@ -375,7 +495,7 @@ export const CustomDashboard = () => {
         return renderEquityChartCard(card)
       }
 
-      // Check for portfolio table cards (second most specific)
+      // Check for portfolio table cards (third most specific)
       if (card.code.includes('Portfolio PnL Overview') ||
           card.code.includes('Total Portfolio Value') ||
           card.code.includes('90 Day PnL') ||
@@ -386,8 +506,8 @@ export const CustomDashboard = () => {
 
       // Check for 7-Day Account P&L cards (least specific, check last)
       if (card.code.includes('7-Day Account P&L') ||
-          (card.code.includes('sevenDaysAgo') && !card.code.includes('sevenDayEquityPoints')) ||
-          (card.name.toLowerCase().includes('7-day') && !card.code.includes('Top Performing Assets'))) {
+          (card.code.includes('sevenDaysAgo') && !card.code.includes('sevenDayEquityPoints') && !card.code.includes('percentage')) ||
+          (card.name.toLowerCase().includes('7-day') && !card.code.includes('Top Performing Assets') && !card.code.includes('Top 5 Assets'))) {
         return renderSevenDayCard(card)
       }
 
