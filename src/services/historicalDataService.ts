@@ -267,6 +267,30 @@ export class HistoricalDataService {
     allClosedPnL.sort((a, b) => parseInt(b.updatedTime || b.createdTime) - parseInt(a.updatedTime || a.createdTime))
     allTrades.sort((a, b) => parseInt(b.execTime) - parseInt(a.execTime))
 
+    // Calculate actual data range based on real data
+    const now = Date.now()
+    let actualStartDate: string
+    let actualTotalDays: number
+
+    if (allClosedPnL.length > 0 || allTrades.length > 0) {
+      // Find the oldest timestamp from either closed P&L or trades
+      const oldestClosedPnL = allClosedPnL.length > 0
+        ? Math.min(...allClosedPnL.map(p => parseInt(p.updatedTime || p.createdTime)))
+        : now
+
+      const oldestTrade = allTrades.length > 0
+        ? Math.min(...allTrades.map(t => parseInt(t.execTime)))
+        : now
+
+      const oldestTimestamp = Math.min(oldestClosedPnL, oldestTrade)
+      actualStartDate = new Date(oldestTimestamp).toISOString().slice(0, 10)
+      actualTotalDays = Math.ceil((now - oldestTimestamp) / (24 * 60 * 60 * 1000))
+    } else {
+      // No data found, use minimal range
+      actualStartDate = new Date(now - (7 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10) // 7 days back
+      actualTotalDays = 7
+    }
+
     // Create cache entry
     const cache: HistoricalDataCache = {
       accountId: account.id,
@@ -274,9 +298,9 @@ export class HistoricalDataService {
       trades: allTrades,
       lastUpdated: Date.now(),
       dataRange: {
-        startDate: new Date(Date.now() - (this.INITIAL_DAYS_HISTORY * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10),
+        startDate: actualStartDate,
         endDate: new Date().toISOString().slice(0, 10),
-        totalDays: this.INITIAL_DAYS_HISTORY,
+        totalDays: actualTotalDays,
         chunksRetrieved: totalChunks
       },
       isComplete: true
@@ -298,7 +322,9 @@ export class HistoricalDataService {
     console.log(`🎉 Historical fetch complete for ${account.name}:`, {
       closedPnL: allClosedPnL.length,
       trades: allTrades.length,
-      totalDays: this.INITIAL_DAYS_HISTORY,
+      actualDays: actualTotalDays,
+      requestedDays: this.INITIAL_DAYS_HISTORY,
+      dateRange: `${actualStartDate} to ${cache.dataRange.endDate}`,
       cacheSize: JSON.stringify(cache).length
     })
 
