@@ -1,5 +1,14 @@
 import React, { useState, useMemo } from 'react'
 import { useAppStore } from '../store/useAppStore'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 
 type ViewType = 'daily' | 'weekly' | 'monthly' | 'quarterly'
 type GroupBy = 'close-date' | 'open-date'
@@ -350,7 +359,7 @@ export const Calendar = () => {
     }).sort((a, b) => {
       const timeA = parseInt(a.updatedTime || a.createdTime)
       const timeB = parseInt(b.updatedTime || b.createdTime)
-      return timeB - timeA // Most recent first
+      return timeA - timeB // Chronological order (oldest first)
     })
   }
 
@@ -360,17 +369,98 @@ export const Calendar = () => {
     const end = parseInt(endTime)
     const durationMs = end - start
 
+
+    // Handle case where times are very close or the same (instant trades)
+    if (durationMs < 1000) {
+      return '< 1s'
+    }
+
     const days = Math.floor(durationMs / (1000 * 60 * 60 * 24))
     const hours = Math.floor((durationMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
     const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((durationMs % (1000 * 60)) / 1000)
 
     if (days > 0) {
       return `${days}d ${hours}h ${minutes}m`
     } else if (hours > 0) {
       return `${hours}h ${minutes}m`
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`
     } else {
-      return `${minutes}m`
+      return `${seconds}s`
     }
+  }
+
+  // Download CSV functionality
+  const downloadCSV = (trades: any[]) => {
+    if (trades.length === 0) {
+      alert('No trades to export')
+      return
+    }
+
+    const headers = [
+      'Account',
+      'ID',
+      'Symbol/Size',
+      'Open',
+      'Duration',
+      'Close',
+      'Realised PnL'
+    ]
+
+    const csvData = [
+      headers.join(','),
+      ...trades.map(trade => {
+        const accountName = accounts.find(acc =>
+          accountsData.find(accData =>
+            accData.account.id === acc.id &&
+            (accData.closedPnL || []).some(pnl => pnl.orderId === trade.orderId)
+          )
+        )?.name || 'Unknown'
+
+        const openPrice = parseFloat(trade.avgEntryPrice || '0').toFixed(2)
+        const closePrice = parseFloat(trade.avgExitPrice || '0').toFixed(2)
+        const pnl = parseFloat(trade.closedPnl || '0').toFixed(2)
+        const size = parseFloat(trade.qty || trade.closedSize || '0').toFixed(4)
+        const duration = formatDuration(trade.createdTime, trade.updatedTime || trade.createdTime)
+
+        const openTime = new Date(parseInt(trade.createdTime)).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+
+        const closeTime = new Date(parseInt(trade.updatedTime || trade.createdTime)).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+
+        return [
+          `"${accountName}"`,
+          `"${trade.orderId}"`,
+          `"${trade.symbol} ${size}"`,
+          `"$${openPrice}@ ${openTime}"`,
+          `"${duration}"`,
+          `"$${closePrice}@ ${closeTime}"`,
+          `"${pnl >= 0 ? '+' : ''}$${pnl}"`
+        ].join(',')
+      })
+    ].join('\n')
+
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+
+    link.setAttribute('href', url)
+    link.setAttribute('download', `trades_${selectedPeriod}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   // Render selected period details
@@ -422,13 +512,29 @@ export const Calendar = () => {
       }
     }
 
-    // Generate cumulative PnL data for equity chart
+    // Generate cumulative PnL data for equity chart (Recharts format)
     const cumulativePnlData = trades.reduce((acc, trade, index) => {
       const pnl = parseFloat(trade.closedPnl || '0')
       const cumulative = index === 0 ? pnl : acc[acc.length - 1].cumulative + pnl
-      acc.push({ index: index + 1, cumulative })
+      const timestamp = parseInt(trade.updatedTime || trade.createdTime)
+
+      acc.push({
+        timestamp,
+        cumulative,
+        pnl,
+        index: index + 1,
+        symbol: trade.symbol,
+        side: trade.side
+      })
       return acc
-    }, [] as Array<{ index: number; cumulative: number }>)
+    }, [] as Array<{
+      timestamp: number;
+      cumulative: number;
+      pnl: number;
+      index: number;
+      symbol: string;
+      side: string;
+    }>)
 
     return (
       <div className="mt-8 bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
@@ -437,22 +543,17 @@ export const Calendar = () => {
             {getPeriodDisplayName(selectedPeriod)} Trades
           </h3>
           <div className="flex items-center space-x-4">
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Overview
-              </button>
-              <button className="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                Notes
-              </button>
-            </div>
+            <button
+              onClick={() => downloadCSV(trades)}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              📥 Download CSV
+            </button>
             <button
               onClick={() => setSelectedPeriod(null)}
               className="px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors"
             >
               Close
-            </button>
-            <button className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-              📥 Download CSV
             </button>
           </div>
         </div>
@@ -460,68 +561,112 @@ export const Calendar = () => {
         {/* PnL Chart */}
         <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg p-6">
           <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">PNL ($)</h4>
-          <div className="h-48 bg-gray-50 dark:bg-gray-900 rounded-lg relative overflow-hidden">
-            {cumulativePnlData.length > 1 ? (
-              <svg
-                className="w-full h-full absolute inset-0"
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                style={{ background: 'transparent' }}
-              >
-                <defs>
-                  <linearGradient id={`pnlGradient-${selectedPeriod}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor={totalPnl >= 0 ? "#10B981" : "#EF4444"} stopOpacity="0.2"/>
-                    <stop offset="100%" stopColor={totalPnl >= 0 ? "#10B981" : "#EF4444"} stopOpacity="0.05"/>
-                  </linearGradient>
-                </defs>
-
-                {/* Calculate path points */}
-                {(() => {
-                  const minPnl = Math.min(...cumulativePnlData.map(p => p.cumulative))
-                  const maxPnl = Math.max(...cumulativePnlData.map(p => p.cumulative))
-                  const range = Math.max(maxPnl - minPnl, 1)
-
-                  const pathPoints = cumulativePnlData.map((point, index) => {
-                    const x = (index / (cumulativePnlData.length - 1)) * 100
-                    const y = 100 - ((point.cumulative - minPnl) / range) * 80 - 10
-                    return `${x},${y}`
-                  }).join(' ')
-
-                  const pathData = `M ${pathPoints.split(' ').map((point, index) =>
-                    `${index === 0 ? '' : 'L '}${point}`
-                  ).join(' ')}`
-
-                  const fillPath = `${pathData} L 100,100 L 0,100 Z`
-
-                  return (
-                    <>
-                      {/* Fill area */}
-                      <path
-                        d={fillPath}
-                        fill={`url(#pnlGradient-${selectedPeriod})`}
-                      />
-                      {/* Line */}
-                      <path
-                        d={pathData}
-                        stroke={totalPnl >= 0 ? "#10B981" : "#EF4444"}
-                        strokeWidth="0.5"
-                        fill="none"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                      {/* End point */}
-                      <circle
-                        cx={100}
-                        cy={100 - ((cumulativePnlData[cumulativePnlData.length - 1].cumulative - minPnl) / range) * 80 - 10}
-                        r="1"
-                        fill={totalPnl >= 0 ? "#10B981" : "#EF4444"}
-                      />
-                    </>
-                  )
-                })()}
-              </svg>
+          <div className="h-64">
+            {cumulativePnlData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={cumulativePnlData}
+                  margin={{ top: 10, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="opacity-20"
+                    stroke="currentColor"
+                  />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={(timestamp) => {
+                      const date = new Date(timestamp)
+                      return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    }}
+                    className="text-xs"
+                    stroke="currentColor"
+                    opacity={0.7}
+                    tick={{ fontSize: 11 }}
+                    interval="preserveStartEnd"
+                    minTickGap={50}
+                    domain={['dataMin', 'dataMax']}
+                    type="number"
+                    scale="time"
+                  />
+                  <YAxis
+                    tickFormatter={(value) => {
+                      if (Math.abs(value) >= 1000) {
+                        return `$${(value / 1000).toFixed(1)}k`
+                      }
+                      return `$${value.toFixed(0)}`
+                    }}
+                    className="text-xs"
+                    stroke="currentColor"
+                    opacity={0.7}
+                    tick={{ fontSize: 11 }}
+                    domain={['dataMin - 10', 'dataMax + 10']}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length && label) {
+                        const data = payload[0].payload
+                        return (
+                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-4">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                              {new Date(label).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                            <div className="space-y-1">
+                              <p className="text-sm">
+                                <span className="font-medium">Trade #{data.index}:</span> {data.symbol} {data.side}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">Trade P&L:</span>{' '}
+                                <span className={data.pnl >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  {data.pnl >= 0 ? '+' : ''}${data.pnl.toFixed(2)}
+                                </span>
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">Cumulative P&L:</span>{' '}
+                                <span className={data.cumulative >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                                  {data.cumulative >= 0 ? '+' : ''}${data.cumulative.toFixed(2)}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="cumulative"
+                    stroke={totalPnl >= 0 ? "#10b981" : "#ef4444"}
+                    strokeWidth={3}
+                    dot={{ fill: totalPnl >= 0 ? "#10b981" : "#ef4444", strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: totalPnl >= 0 ? "#10b981" : "#ef4444", strokeWidth: 2 }}
+                    name="Cumulative P&L"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                Not enough data for chart
+              <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                <div className="text-center">
+                  <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                  <p className="text-sm">No trades to display</p>
+                </div>
               </div>
             )}
           </div>
@@ -587,19 +732,20 @@ export const Calendar = () => {
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Symbol/Size</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Open</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Duration</th>
+                  {selectedPeriod && !selectedPeriod.includes('-W') && !selectedPeriod.includes('-Q') && !selectedPeriod.match(/^\d{4}-\d{2}$/) && (
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Duration</th>
+                  )}
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Close</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Realised PNL</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                 {trades.map((trade, index) => {
                   const pnl = parseFloat(trade.closedPnl || '0')
-                  const account = accountsData.find(acc => acc.closedPnL?.some(t => t.id === trade.id))
+                  const account = accountsData.find(acc => acc.closedPnL?.some(t => t.orderId === trade.orderId))
 
                   return (
-                    <tr key={trade.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr key={trade.orderId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-3 text-sm">
                         <div className="flex items-center">
                           <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
@@ -608,10 +754,10 @@ export const Calendar = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">{trade.id}</td>
+                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">{trade.orderId}</td>
                       <td className="px-3 py-3 text-sm">
                         <div className="font-medium text-gray-900 dark:text-gray-100">{trade.symbol}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{trade.side === 'Buy' ? '+' : ''}{trade.cumExecQty}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{trade.side === 'Buy' ? '+' : ''}{trade.qty || trade.closedSize}</div>
                       </td>
                       <td className="px-3 py-3 text-sm">
                         <div className="font-medium">${parseFloat(trade.avgEntryPrice || '0').toFixed(2)}@</div>
@@ -619,11 +765,13 @@ export const Calendar = () => {
                           {new Date(parseInt(trade.createdTime)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(parseInt(trade.createdTime)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-sm">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-                          {formatDuration(trade.createdTime, trade.updatedTime || trade.createdTime)}
-                        </span>
-                      </td>
+                      {selectedPeriod && !selectedPeriod.includes('-W') && !selectedPeriod.includes('-Q') && !selectedPeriod.match(/^\d{4}-\d{2}$/) && (
+                        <td className="px-3 py-3 text-sm">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                            {formatDuration(trade.createdTime, trade.updatedTime || trade.createdTime)}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-3 py-3 text-sm">
                         <div className="font-medium">${parseFloat(trade.avgExitPrice || '0').toFixed(2)}@</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -634,20 +782,6 @@ export const Calendar = () => {
                         <span className={`font-bold ${pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
                         </span>
-                      </td>
-                      <td className="px-3 py-3 text-sm">
-                        <div className="flex space-x-1">
-                          <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   )

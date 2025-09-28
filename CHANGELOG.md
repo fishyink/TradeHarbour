@@ -1,5 +1,44 @@
 # Bybit Dashboard Changelog
 
+## Version 1.3.2 - September 28, 2025
+
+### 📅 Calendar Feature Enhancements
+- **Calendar P&L Visualization**: Comprehensive calendar view for trade analysis
+  - Daily, Weekly, Monthly, and Quarterly calendar views
+  - Color-coded profit/loss indicators (green for profits, red for losses)
+  - Real-time data integration with closed P&L trades
+  - Interactive calendar squares with click functionality to view detailed trade breakdown
+
+- **Trade Details & Analytics**: Enhanced trade analysis capabilities
+  - Detailed trade breakdown when clicking calendar periods
+  - Long vs Short ratio analysis with visual progress indicators
+  - Win rate calculations and trade duration analytics
+  - Professional equity curve charts with mouse hover tooltips showing exact dollar values
+  - Chronological equity progression display
+
+- **CSV Export Functionality**: Professional data export capabilities
+  - Download CSV button for exporting selected period trade data
+  - Comprehensive export including Account, ID, Symbol/Size, Open/Close prices with timestamps, Duration, and Realized P&L
+  - Automatic filename generation with period and date information
+
+- **Smart Duration Handling**: Optimized duration display logic
+  - Duration column removed from Weekly, Monthly, and Quarterly views (due to API data limitations for older trades)
+  - Duration column maintained for Daily view with accurate trade timing
+  - Improved duration calculation with better handling of instant trades
+
+- **UI/UX Improvements**: Cleaner calendar interface
+  - Removed unnecessary Notes and Overview buttons
+  - Removed Actions column (edit/delete functionality) for cleaner trade tables
+  - Fixed field mapping issues (orderId, qty/closedSize) for consistent data display
+  - Improved button layout and spacing
+
+### 🔧 Technical Fixes
+- **Data Consistency**: Fixed field name mismatches causing data display issues
+- **Trade History Integration**: Ensured calendar duration calculations match Trade History page accuracy
+- **API Data Handling**: Better handling of historical trade data limitations for older trades
+
+---
+
 ## Version 1.4.0 - September 27, 2025
 
 ### 🎨 UI/UX Improvements
