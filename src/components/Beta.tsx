@@ -246,6 +246,63 @@ export const Beta = () => {
     // Calculate win rate for advanced stats
     const winRate = limitedClosedPnL.length > 0 ? (limitedClosedPnL.filter(t => parseFloat(t.closedPnl) > 0).length / limitedClosedPnL.length) * 100 : 0
 
+    // Long/Short Analysis
+    const longTrades = limitedClosedPnL.filter(t => t.side === 'Buy')
+    const shortTrades = limitedClosedPnL.filter(t => t.side === 'Sell')
+
+    const longStats = {
+      count: longTrades.length,
+      percentage: limitedClosedPnL.length > 0 ? (longTrades.length / limitedClosedPnL.length) * 100 : 0,
+      wins: longTrades.filter(t => parseFloat(t.closedPnl) > 0).length,
+      losses: longTrades.filter(t => parseFloat(t.closedPnl) <= 0).length,
+      winRate: longTrades.length > 0 ? (longTrades.filter(t => parseFloat(t.closedPnl) > 0).length / longTrades.length) * 100 : 0,
+      totalPnL: longTrades.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0),
+      avgWin: longTrades.filter(t => parseFloat(t.closedPnl) > 0).length > 0 ?
+        longTrades.filter(t => parseFloat(t.closedPnl) > 0).reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / longTrades.filter(t => parseFloat(t.closedPnl) > 0).length : 0,
+      avgLoss: longTrades.filter(t => parseFloat(t.closedPnl) < 0).length > 0 ?
+        Math.abs(longTrades.filter(t => parseFloat(t.closedPnl) < 0).reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / longTrades.filter(t => parseFloat(t.closedPnl) < 0).length) : 0,
+      avgDuration: longTrades.length > 0 ?
+        longTrades.reduce((sum, t) => sum + (parseInt(t.updatedTime || t.createdTime) - parseInt(t.createdTime)), 0) / longTrades.length : 0,
+      winDurationPercentage: 0, // Will be calculated below
+      lossDurationPercentage: 0 // Will be calculated below
+    }
+
+    const shortStats = {
+      count: shortTrades.length,
+      percentage: limitedClosedPnL.length > 0 ? (shortTrades.length / limitedClosedPnL.length) * 100 : 0,
+      wins: shortTrades.filter(t => parseFloat(t.closedPnl) > 0).length,
+      losses: shortTrades.filter(t => parseFloat(t.closedPnl) <= 0).length,
+      winRate: shortTrades.length > 0 ? (shortTrades.filter(t => parseFloat(t.closedPnl) > 0).length / shortTrades.length) * 100 : 0,
+      totalPnL: shortTrades.reduce((sum, t) => sum + parseFloat(t.closedPnl), 0),
+      avgWin: shortTrades.filter(t => parseFloat(t.closedPnl) > 0).length > 0 ?
+        shortTrades.filter(t => parseFloat(t.closedPnl) > 0).reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / shortTrades.filter(t => parseFloat(t.closedPnl) > 0).length : 0,
+      avgLoss: shortTrades.filter(t => parseFloat(t.closedPnl) < 0).length > 0 ?
+        Math.abs(shortTrades.filter(t => parseFloat(t.closedPnl) < 0).reduce((sum, t) => sum + parseFloat(t.closedPnl), 0) / shortTrades.filter(t => parseFloat(t.closedPnl) < 0).length) : 0,
+      avgDuration: shortTrades.length > 0 ?
+        shortTrades.reduce((sum, t) => sum + (parseInt(t.updatedTime || t.createdTime) - parseInt(t.createdTime)), 0) / shortTrades.length : 0,
+      winDurationPercentage: 0, // Will be calculated below
+      lossDurationPercentage: 0 // Will be calculated below
+    }
+
+    // Calculate duration percentages for win vs loss above/below average
+    if (longStats.count > 0) {
+      const longWinTrades = longTrades.filter(t => parseFloat(t.closedPnl) > 0)
+      const longLossTrades = longTrades.filter(t => parseFloat(t.closedPnl) <= 0)
+      longStats.winDurationPercentage = longWinTrades.length > 0 ?
+        (longWinTrades.filter(t => (parseInt(t.updatedTime || t.createdTime) - parseInt(t.createdTime)) >= longStats.avgDuration).length / longWinTrades.length) * 100 : 0
+      longStats.lossDurationPercentage = longLossTrades.length > 0 ?
+        (longLossTrades.filter(t => (parseInt(t.updatedTime || t.createdTime) - parseInt(t.createdTime)) >= longStats.avgDuration).length / longLossTrades.length) * 100 : 0
+    }
+
+    if (shortStats.count > 0) {
+      const shortWinTrades = shortTrades.filter(t => parseFloat(t.closedPnl) > 0)
+      const shortLossTrades = shortTrades.filter(t => parseFloat(t.closedPnl) <= 0)
+      shortStats.winDurationPercentage = shortWinTrades.length > 0 ?
+        (shortWinTrades.filter(t => (parseInt(t.updatedTime || t.createdTime) - parseInt(t.createdTime)) >= shortStats.avgDuration).length / shortWinTrades.length) * 100 : 0
+      shortStats.lossDurationPercentage = shortLossTrades.length > 0 ?
+        (shortLossTrades.filter(t => (parseInt(t.updatedTime || t.createdTime) - parseInt(t.createdTime)) >= shortStats.avgDuration).length / shortLossTrades.length) * 100 : 0
+    }
+
 
     // Asset Allocation
     const assetAllocation = accountsData.map(account => {
@@ -319,6 +376,11 @@ export const Beta = () => {
       topPerformingAssets,
       calendarData,
       enhancedDayPerformance,
+      longShortAnalysis: {
+        longStats,
+        shortStats,
+        totalTrades: limitedClosedPnL.length
+      },
       advancedStats: {
         totalRealizedPnL,
         totalTrades,
@@ -336,6 +398,56 @@ export const Beta = () => {
   }, [accountsData])
 
   const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
+
+  // Format duration from milliseconds to human readable
+  const formatDuration = (durationMs: number) => {
+    const hours = Math.floor(durationMs / (1000 * 60 * 60))
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60))
+    return `${hours}h ${minutes}m`
+  }
+
+  // Circular progress component for win rates
+  const CircularProgress = ({ percentage, size = 80, strokeWidth = 8, color = '#10b981' }: any) => {
+    const radius = (size - strokeWidth) / 2
+    const circumference = radius * 2 * Math.PI
+    const strokeDasharray = circumference
+    const strokeDashoffset = circumference - (percentage / 100) * circumference
+
+    return (
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="transform -rotate-90">
+          {/* Background circle */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#374151"
+            strokeWidth={strokeWidth}
+            fill="transparent"
+            className="dark:stroke-gray-600"
+          />
+          {/* Progress circle */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            fill="transparent"
+            strokeDasharray={strokeDasharray}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-300 ease-in-out"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-lg font-bold text-gray-900 dark:text-white">
+            {percentage.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   if (accountsData.length === 0) {
     return (
@@ -468,6 +580,182 @@ export const Beta = () => {
           </div>
         </div>
       </div>
+
+      {/* Long/Short Analysis */}
+      {analytics.longShortAnalysis && analytics.longShortAnalysis.totalTrades > 0 && (
+        <div className="bg-gray-900 dark:bg-gray-800 rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+            </svg>
+            Long/Short Analysis
+          </h2>
+
+          {/* Longs Section */}
+          <div className="mb-6">
+            <div className="border-t-4 border-green-500 bg-gray-800 dark:bg-gray-700 rounded-lg p-6">
+              <h3 className="text-white text-lg font-semibold mb-4">Longs</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Long Count */}
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-white mb-2">
+                    {analytics.longShortAnalysis.longStats.count}
+                  </div>
+                  <div className="w-full bg-gray-600 rounded-full h-2 mb-2">
+                    <div
+                      className="bg-green-500 h-2 rounded-full"
+                      style={{ width: `${analytics.longShortAnalysis.longStats.percentage}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    {analytics.longShortAnalysis.longStats.percentage.toFixed(0)}% of all your total trades were LONG
+                  </div>
+                </div>
+
+                {/* Long Win Ratio */}
+                <div className="text-center">
+                  <div className="flex justify-center mb-2">
+                    <CircularProgress
+                      percentage={analytics.longShortAnalysis.longStats.winRate}
+                      color="#10b981"
+                      size={100}
+                    />
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    {analytics.longShortAnalysis.longStats.wins} Wins / {analytics.longShortAnalysis.longStats.losses} Losses
+                  </div>
+                </div>
+
+                {/* Long Duration */}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white mb-2">
+                    {formatDuration(analytics.longShortAnalysis.longStats.avgDuration)}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-300">Win% above</span>
+                      <span className="text-gray-300">Win% below</span>
+                    </div>
+                    <div className="flex space-x-1">
+                      <div className="flex-1 bg-gray-600 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${analytics.longShortAnalysis.longStats.winDurationPercentage}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex-1 bg-gray-600 rounded-full h-2">
+                        <div
+                          className="bg-red-500 h-2 rounded-full"
+                          style={{ width: `${100 - analytics.longShortAnalysis.longStats.winDurationPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-green-400">{analytics.longShortAnalysis.longStats.winDurationPercentage.toFixed(1)}%</span>
+                      <span className="text-red-400">{(100 - analytics.longShortAnalysis.longStats.winDurationPercentage).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Long P&L */}
+                <div className="text-center">
+                  <div className={`text-2xl font-bold mb-2 ${
+                    analytics.longShortAnalysis.longStats.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {analytics.longShortAnalysis.longStats.totalPnL >= 0 ? '+' : ''}${analytics.longShortAnalysis.longStats.totalPnL.toFixed(2)}
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    <div className="text-green-400">Avg Win ${analytics.longShortAnalysis.longStats.avgWin.toFixed(2)}</div>
+                    <div className="text-red-400">Avg loss ${analytics.longShortAnalysis.longStats.avgLoss.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Shorts Section */}
+          <div>
+            <div className="border-t-4 border-red-500 bg-gray-800 dark:bg-gray-700 rounded-lg p-6">
+              <h3 className="text-white text-lg font-semibold mb-4">Shorts</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Short Count */}
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-white mb-2">
+                    {analytics.longShortAnalysis.shortStats.count}
+                  </div>
+                  <div className="w-full bg-gray-600 rounded-full h-2 mb-2">
+                    <div
+                      className="bg-red-500 h-2 rounded-full"
+                      style={{ width: `${analytics.longShortAnalysis.shortStats.percentage}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    {analytics.longShortAnalysis.shortStats.percentage.toFixed(0)}% of all your total trades were SHORT
+                  </div>
+                </div>
+
+                {/* Short Win Ratio */}
+                <div className="text-center">
+                  <div className="flex justify-center mb-2">
+                    <CircularProgress
+                      percentage={analytics.longShortAnalysis.shortStats.winRate}
+                      color="#ef4444"
+                      size={100}
+                    />
+                  </div>
+                  <div className="text-gray-300 text-sm">
+                    {analytics.longShortAnalysis.shortStats.wins} Wins / {analytics.longShortAnalysis.shortStats.losses} Losses
+                  </div>
+                </div>
+
+                {/* Short Duration */}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white mb-2">
+                    {formatDuration(analytics.longShortAnalysis.shortStats.avgDuration)}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-300">Win% above</span>
+                      <span className="text-gray-300">Win% below</span>
+                    </div>
+                    <div className="flex space-x-1">
+                      <div className="flex-1 bg-gray-600 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${analytics.longShortAnalysis.shortStats.winDurationPercentage}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex-1 bg-gray-600 rounded-full h-2">
+                        <div
+                          className="bg-red-500 h-2 rounded-full"
+                          style={{ width: `${100 - analytics.longShortAnalysis.shortStats.winDurationPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-green-400">{analytics.longShortAnalysis.shortStats.winDurationPercentage.toFixed(1)}%</span>
+                      <span className="text-red-400">{(100 - analytics.longShortAnalysis.shortStats.winDurationPercentage).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Short P&L */}
+                <div className="text-center">
+                  <div className={`text-2xl font-bold mb-2 ${
+                    analytics.longShortAnalysis.shortStats.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {analytics.longShortAnalysis.shortStats.totalPnL >= 0 ? '+' : ''}${analytics.longShortAnalysis.shortStats.totalPnL.toFixed(2)}
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    <div className="text-green-400">Avg Win ${analytics.longShortAnalysis.shortStats.avgWin.toFixed(2)}</div>
+                    <div className="text-red-400">Avg loss ${analytics.longShortAnalysis.shortStats.avgLoss.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Win/Loss Streak Tracker */}
       <div className="card p-6">

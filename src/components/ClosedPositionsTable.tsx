@@ -68,15 +68,23 @@ export const ClosedPositionsTable = ({ positions }: ClosedPositionsTableProps) =
   return (
     <div className="overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="w-full text-sm table-fixed">
+          <colgroup>
+            <col className="w-[15%]" />
+            <col className="w-[18%]" />
+            <col className="w-[20%]" />
+            <col className="w-[12%]" />
+            <col className="w-[20%]" />
+            <col className="w-[15%]" />
+          </colgroup>
           <thead>
             <tr className="border-b border-gray-200 dark:border-dark-600">
-              <th className="text-left py-3 font-medium text-muted">Account</th>
-              <th className="text-left py-3 font-medium text-muted">Symbol/Size</th>
-              <th className="text-left py-3 font-medium text-muted">Open</th>
-              <th className="text-center py-3 font-medium text-muted">Duration</th>
-              <th className="text-left py-3 font-medium text-muted">Close</th>
-              <th className="text-right py-3 font-medium text-muted">Realised PnL</th>
+              <th className="text-left py-2 px-3 font-medium text-muted">Account</th>
+              <th className="text-left py-2 px-3 font-medium text-muted">Symbol/Size</th>
+              <th className="text-left py-2 px-3 font-medium text-muted">Open</th>
+              <th className="text-center py-2 px-3 font-medium text-muted">Duration</th>
+              <th className="text-left py-2 px-3 font-medium text-muted">Close</th>
+              <th className="text-right py-2 px-3 font-medium text-muted">Realised PnL</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-dark-600">
@@ -93,27 +101,27 @@ export const ClosedPositionsTable = ({ positions }: ClosedPositionsTableProps) =
 
               return (
                 <tr key={`${position.orderId}-${index}`} className="hover:bg-gray-50 dark:hover:bg-dark-700/50">
-                  <td className="py-3">
+                  <td className="py-2 px-3">
                     <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                      <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center">
                         <span className="text-blue-600 dark:text-blue-400 text-xs font-bold">
-                          {position.exchange === 'Bybit' ? 'B' : 'E'}
+                          B
                         </span>
                       </div>
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white text-sm">
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 dark:text-white text-xs">
                           Bybit
                         </div>
-                        <div className="text-xs text-muted">
+                        <div className="text-xs text-muted truncate">
                           {position.accountName}
                         </div>
                       </div>
                     </div>
                   </td>
 
-                  <td className="py-3">
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">
+                  <td className="py-2 px-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 dark:text-white text-sm">
                         {position.symbol}
                       </div>
                       <div className="text-xs text-muted">
@@ -122,36 +130,36 @@ export const ClosedPositionsTable = ({ positions }: ClosedPositionsTableProps) =
                     </div>
                   </td>
 
-                  <td className="py-3">
-                    <div>
+                  <td className="py-2 px-3">
+                    <div className="min-w-0">
                       <div className="font-mono text-sm text-gray-900 dark:text-white">
                         ${avgEntryPrice.toFixed(2)}@
                       </div>
-                      <div className="text-xs text-muted">
+                      <div className="text-xs text-muted truncate">
                         {formatTime(position.createdTime)}
                       </div>
                     </div>
                   </td>
 
-                  <td className="py-3 text-center">
-                    <span className="inline-flex px-3 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                  <td className="py-2 px-3 text-center">
+                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                       {duration}
                     </span>
                   </td>
 
-                  <td className="py-3">
-                    <div>
+                  <td className="py-2 px-3">
+                    <div className="min-w-0">
                       <div className="font-mono text-sm text-gray-900 dark:text-white">
                         ${avgExitPrice.toFixed(2)}@
                       </div>
-                      <div className="text-xs text-muted">
+                      <div className="text-xs text-muted truncate">
                         {formatTime(position.updatedTime || position.createdTime)}
                       </div>
                     </div>
                   </td>
 
-                  <td className="py-3 text-right">
-                    <div className={`font-semibold text-lg ${
+                  <td className="py-2 px-3 text-right">
+                    <div className={`font-semibold text-sm ${
                       closedPnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
                       {closedPnl >= 0 ? '+' : ''}${closedPnl.toFixed(2)}
