@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './components/Dashboard'
 import { AccountManager } from './components/AccountManager'
 import { Settings } from './components/Settings'
+import { Calendar } from './components/Calendar'
 import { Beta } from './components/Beta'
 import { DaviddtechBeta } from './components/DaviddtechBeta'
 import { Diagnostics } from './components/Diagnostics'
@@ -14,7 +15,7 @@ import { CustomDashboard } from './components/CustomDashboard'
 import { useAutoRefresh } from './hooks/useAutoRefresh'
 import { useState } from 'react'
 
-type Page = 'dashboard' | 'accounts' | 'settings' | 'beta' | 'daviddtech-beta' | 'diagnostics' | 'trade-history' | 'custom-cards' | 'custom-dashboard'
+type Page = 'dashboard' | 'accounts' | 'settings' | 'calendar' | 'beta' | 'daviddtech-beta' | 'diagnostics' | 'trade-history' | 'custom-cards' | 'custom-dashboard'
 
 function App() {
   const { settings, loadData, error, setError } = useAppStore()
@@ -40,6 +41,8 @@ function App() {
         return <AccountManager />
       case 'settings':
         return <Settings />
+      case 'calendar':
+        return <Calendar />
       case 'beta':
         return <Beta />
       case 'daviddtech-beta':
