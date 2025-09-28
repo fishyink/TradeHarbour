@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { TradesTable } from './TradesTable'
+import { ClosedPositionsTable } from './ClosedPositionsTable'
 import { exportTradesToCSV } from '../utils/csvExport'
 
 export const TradeHistory = () => {
@@ -20,13 +20,13 @@ export const TradeHistory = () => {
   const allTrades = useMemo(() => {
     return filteredData
       .flatMap(account =>
-        account.trades.map(trade => ({
+        (account.closedPnL || []).map(trade => ({
           ...trade,
           accountName: account.name,
           exchange: 'Bybit' // Default to Bybit for now, will support multiple exchanges
         }))
       )
-      .sort((a, b) => parseInt(b.execTime) - parseInt(a.execTime))
+      .sort((a, b) => parseInt(b.updatedTime || b.createdTime) - parseInt(a.updatedTime || a.createdTime))
   }, [filteredData])
 
   const uniquePairs = useMemo(() => {
@@ -56,12 +56,12 @@ export const TradeHistory = () => {
 
     if (dateFrom) {
       const fromTime = new Date(dateFrom).getTime()
-      filtered = filtered.filter(trade => parseInt(trade.execTime) >= fromTime)
+      filtered = filtered.filter(trade => parseInt(trade.updatedTime || trade.createdTime) >= fromTime)
     }
 
     if (dateTo) {
       const toTime = new Date(dateTo).getTime() + (24 * 60 * 60 * 1000) // End of day
-      filtered = filtered.filter(trade => parseInt(trade.execTime) <= toTime)
+      filtered = filtered.filter(trade => parseInt(trade.updatedTime || trade.createdTime) <= toTime)
     }
 
     return filtered
@@ -303,7 +303,7 @@ export const TradeHistory = () => {
             <p className="text-sm mt-1">Try adjusting your filters to see trade data</p>
           </div>
         ) : (
-          <TradesTable trades={paginatedTrades} />
+          <ClosedPositionsTable positions={paginatedTrades} />
         )}
       </div>
     </div>
