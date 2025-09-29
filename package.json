@@ -20,6 +20,9 @@
     "build:renderer:check": "tsc && vite build",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:all": "npm run build && electron-builder --win --mac --linux",
     "dist:portable": "npm run build && electron-builder --win --config.nsis.oneClick=false --config.nsis.allowToChangeInstallationDirectory=true"
   },
   "devDependencies": {
@@ -85,6 +88,48 @@
       "forceCodeSigning": false,
       "signAndEditExecutable": false,
       "artifactName": "TradeHarbour-${version}-portable.zip"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "category": "public.app-category.finance",
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "TradeHarbour-${version}-mac.dmg"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Office",
+      "icon": "assets/icon.png",
+      "artifactName": "TradeHarbour-${version}-linux.AppImage"
+    },
+    "dmg": {
+      "title": "Trade Harbour ${version}",
+      "icon": "assets/icon.icns",
+      "background": "assets/dmg-background.png",
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ]
     }
   }
 }
