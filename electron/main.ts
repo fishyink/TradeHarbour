@@ -6,34 +6,60 @@ import * as fs from 'fs'
 
 const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
 
-// Ensure data directory exists - use app.getPath for proper user data location
+// Storage management with mode support
 let dataDir: string
+let portableDataDir: string
+let systemDataDir: string
 let store: Store
+let currentStorageMode: 'portable' | 'system' = 'system'
 
+// Initialize both possible data directories
 try {
-  // Use the appropriate data directory based on environment
+  // Portable directory (next to executable)
   if (app.isPackaged) {
-    // In packaged apps, use the system's userData directory
-    dataDir = app.getPath('userData')
+    portableDataDir = path.join(path.dirname(process.execPath), 'data')
   } else {
-    // In development, use local data folder
-    dataDir = path.join(__dirname, '../data')
+    portableDataDir = path.join(__dirname, '../data')
   }
 
+  // System directory (AppData)
+  systemDataDir = app.getPath('userData')
+
+  // Check if we have a storage mode preference
+  let tempStore = new Store({
+    name: 'bybit-dashboard-config',
+    encryptionKey: 'bybit-dashboard-secure-key-2024',
+    cwd: systemDataDir,
+  })
+
+  const settings = tempStore.get('settings') as any
+  if (settings?.storageMode === 'portable') {
+    currentStorageMode = 'portable'
+    dataDir = portableDataDir
+  } else {
+    currentStorageMode = 'system'
+    dataDir = systemDataDir
+  }
+
+  // Ensure the chosen directory exists
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true })
   }
 
+  // Initialize store with the chosen directory
   store = new Store({
     name: 'bybit-dashboard-config',
     encryptionKey: 'bybit-dashboard-secure-key-2024',
     cwd: dataDir,
   })
 
-  console.log('Data directory initialized:', dataDir)
+  console.log(`Data directory initialized in ${currentStorageMode} mode:`, dataDir)
 } catch (error) {
   console.error('Failed to initialize data directory:', error)
   // Fallback to default electron-store behavior
+  systemDataDir = app.getPath('userData')
+  dataDir = systemDataDir
+  currentStorageMode = 'system'
   store = new Store({
     name: 'bybit-dashboard-config',
     encryptionKey: 'bybit-dashboard-secure-key-2024',
@@ -209,8 +235,111 @@ ipcMain.handle('show-save-dialog', async (_, options) => {
   return { canceled: true }
 })
 
+ipcMain.handle('show-open-dialog', async (_, options) => {
+  if (mainWindow) {
+    const result = await dialog.showOpenDialog(mainWindow, options)
+    return result
+  }
+  return { canceled: true }
+})
+
+ipcMain.handle('get-user-data-path', () => {
+  return dataDir
+})
+
+ipcMain.handle('get-storage-info', () => {
+  return {
+    currentMode: currentStorageMode,
+    portablePath: portableDataDir,
+    systemPath: systemDataDir,
+    currentPath: dataDir
+  }
+})
+
+ipcMain.handle('export-user-data', async () => {
+  try {
+    const configFile = path.join(dataDir, 'bybit-dashboard-config.json')
+    if (fs.existsSync(configFile)) {
+      const data = fs.readFileSync(configFile, 'utf8')
+      return { success: true, data }
+    }
+    return { success: false, error: 'No user data found' }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+})
+
+ipcMain.handle('import-user-data', async (_, filePath: string) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return { success: false, error: 'File does not exist' }
+    }
+
+    const data = fs.readFileSync(filePath, 'utf8')
+    const configFile = path.join(dataDir, 'bybit-dashboard-config.json')
+
+    // Backup existing data
+    if (fs.existsSync(configFile)) {
+      const backupFile = path.join(dataDir, `bybit-dashboard-config.backup.${Date.now()}.json`)
+      fs.copyFileSync(configFile, backupFile)
+    }
+
+    // Import new data
+    fs.writeFileSync(configFile, data, 'utf8')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+})
+
+ipcMain.handle('switch-storage-mode', async (_, newMode: 'portable' | 'system') => {
+  try {
+    const targetDir = newMode === 'portable' ? portableDataDir : systemDataDir
+    const sourceDir = dataDir
+
+    // Create target directory if it doesn't exist
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true })
+    }
+
+    // Copy data from current location to target location
+    const sourceConfigFile = path.join(sourceDir, 'bybit-dashboard-config.json')
+    const targetConfigFile = path.join(targetDir, 'bybit-dashboard-config.json')
+
+    if (fs.existsSync(sourceConfigFile)) {
+      // Backup target if it exists
+      if (fs.existsSync(targetConfigFile)) {
+        const backupFile = path.join(targetDir, `bybit-dashboard-config.backup.${Date.now()}.json`)
+        fs.copyFileSync(targetConfigFile, backupFile)
+      }
+
+      // Copy current data to target
+      fs.copyFileSync(sourceConfigFile, targetConfigFile)
+    }
+
+    // Update the store to point to new location
+    dataDir = targetDir
+    currentStorageMode = newMode
+
+    store = new Store({
+      name: 'bybit-dashboard-config',
+      encryptionKey: 'bybit-dashboard-secure-key-2024',
+      cwd: dataDir,
+    })
+
+    // Update the storage mode setting in the new location
+    const currentSettings = store.get('settings') as any || {}
+    store.set('settings', { ...currentSettings, storageMode: newMode })
+
+    console.log(`Switched to ${newMode} mode:`, dataDir)
+    return { success: true, newPath: dataDir }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+})
+
 ipcMain.handle('get-app-version', () => {
-  return '1.3.2' // Our app version, not Electron version
+  return '1.4.6' // Our app version, not Electron version
 })
 
 autoUpdater.on('update-available', () => {

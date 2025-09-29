@@ -84,6 +84,66 @@ npm run dist         # Create distributable packages
 
 ---
 
+## 🔄 Upgrading to New Versions
+
+### ⚙️ **Storage Modes - You Choose!**
+
+Trade Harbour offers two storage modes for your data:
+
+#### 🗂️ **System Mode (Default)**
+- **Data location**: Windows AppData folder (`%APPDATA%\trade-harbour\`)
+- **Pros**: Automatic data persistence, survives app updates, multiple installations possible
+- **Best for**: Most users, permanent installations
+
+#### 💾 **Portable Mode**
+- **Data location**: `data/` folder next to the .exe file
+- **Pros**: True portability, easy backups, USB-friendly, clear data ownership
+- **Best for**: USB drives, temporary setups, multiple separate instances
+
+> **Switch anytime**: Go to Diagnostics → Backup & Restore → Storage Mode
+
+### 🚀 **How to Upgrade:**
+
+#### If Using System Mode 🗂️
+Your data **automatically persists** between versions:
+
+1. **Download** the new version from [Releases](https://github.com/fishyink/tradeharbour/releases)
+2. **Close** the current Trade Harbour application
+3. **Replace** the old .exe file (or install anywhere)
+4. **Run** the new version - all your data will be there!
+
+#### If Using Portable Mode 💾
+Your data travels with the application folder:
+
+1. **Download** the new version
+2. **Close** the current Trade Harbour application
+3. **Copy your `data/` folder** to the new version directory
+4. **Run** the new version - your data is preserved!
+
+> **Pro tip**: In portable mode, you can also just replace the .exe file in your current folder
+
+### 🛡️ **Built-in Backup & Restore**
+
+Trade Harbour includes backup tools:
+
+1. **Go to**: Diagnostics → Backup & Restore
+2. **Export**: Creates a complete backup file
+3. **Import**: Restores from backup file
+4. **Switch Modes**: Migrate between storage modes safely
+
+### 📍 **Find Your Data:**
+- **System Mode**: `%APPDATA%\trade-harbour\`
+- **Portable Mode**: `[AppFolder]\data\`
+- **In-app**: Diagnostics → Backup & Restore shows current location
+
+### ⚠️ **Important Notes:**
+- **Choose your preferred storage mode** on first run
+- **Never run multiple versions simultaneously** (data conflicts possible)
+- **Always close the app before replacing** the executable
+- **Export a backup** before major version changes
+
+---
+
 ## 🔧 Exchange Setup
 
 ### Bybit (Full Support)

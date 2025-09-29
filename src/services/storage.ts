@@ -32,10 +32,13 @@ export function convertToBybitAccount(account: ExchangeAccount): BybitAccount {
   }
 }
 
+export type StorageMode = 'portable' | 'system'
+
 export interface AppSettings {
   theme: 'light' | 'dark'
   autoRefresh: boolean
   refreshInterval: number
+  storageMode: StorageMode
 }
 
 class StorageService {
@@ -102,6 +105,7 @@ class StorageService {
         theme: 'dark',
         autoRefresh: true,
         refreshInterval: 21600000, // 6 hours
+        storageMode: 'system', // Default to system mode
         ...settings,
       }
     } catch (error) {
@@ -110,6 +114,7 @@ class StorageService {
         theme: 'dark',
         autoRefresh: true,
         refreshInterval: 21600000, // 6 hours
+        storageMode: 'system', // Default to system mode
       }
     }
   }

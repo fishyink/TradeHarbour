@@ -1,6 +1,35 @@
 # Bybit Dashboard Changelog
 
-## Version 1.3.2 - September 29, 2025
+## Version 1.4.6 - September 29, 2025
+
+### 🆕 **Major Feature: Dual Storage Modes**
+- **User Choice Storage System**: Choose between System Mode and Portable Mode
+  - **System Mode**: Data stored in Windows AppData (automatic persistence)
+  - **Portable Mode**: Data stored next to .exe file (true portability)
+  - **Live Migration**: Switch between modes safely with data migration
+  - **Smart Detection**: App remembers your preference and initializes accordingly
+
+### 🎛️ **Enhanced Diagnostics & Backup**
+- **Storage Mode UI**: Visual mode selection with clickable cards
+- **Real-time Storage Info**: Shows current paths for both modes
+- **One-Click Mode Switching**: Migrate data between storage modes instantly
+- **Enhanced Backup System**: Export/import works in both modes
+- **Mode-Specific Upgrade Instructions**: Dynamic upgrade guides based on current mode
+
+### 🔧 **Technical Improvements**
+- **Dual Directory Management**: App handles both portable and system directories
+- **Automatic Data Migration**: Seamless copying between storage locations
+- **Storage Mode Persistence**: App remembers and respects user choice
+- **Enhanced Error Handling**: Better fallbacks for storage initialization
+
+### 📖 **Updated Documentation**
+- **README Storage Guide**: Comprehensive guide for both storage modes
+- **In-App Instructions**: Dynamic upgrade instructions based on current mode
+- **Visual Mode Indicators**: Clear UI showing current storage mode
+
+---
+
+## Version 1.3.2 - September 29, 2025 (Previous Release)
 
 ### 🔧 Critical Bug Fixes & Security Improvements
 - **Fixed Portable Version Storage Errors**: Resolved ENOTDIR storage errors in portable releases

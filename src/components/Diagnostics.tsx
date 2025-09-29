@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { bybitAPI } from '../services/bybit'
 
@@ -15,9 +15,13 @@ interface DiagnosticData {
 export const Diagnostics = () => {
   const { accounts, clearEquityHistory } = useAppStore()
   const [diagnosticData, setDiagnosticData] = useState<Record<string, DiagnosticData>>({})
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('backup')
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false)
+  const [userDataPath, setUserDataPath] = useState<string>('')
+  const [backupStatus, setBackupStatus] = useState<string>('')
+  const [storageInfo, setStorageInfo] = useState<any>(null)
+  const [switchingMode, setSwitchingMode] = useState<boolean>(false)
 
   const runDiagnostics = async () => {
     if (accounts.length === 0) return
@@ -127,8 +131,148 @@ export const Diagnostics = () => {
     alert('Data copied to clipboard!')
   }
 
+  // Get storage info on component mount
+  useEffect(() => {
+    const getStorageInfo = async () => {
+      try {
+        const info = await window.electronAPI.app.getStorageInfo()
+        setStorageInfo(info)
+        setUserDataPath(info.currentPath)
+      } catch (error) {
+        console.error('Failed to get storage info:', error)
+      }
+    }
+    getStorageInfo()
+  }, [])
+
+  const exportBackup = async () => {
+    try {
+      setBackupStatus('Exporting...')
+
+      const result = await window.electronAPI.dialog.showSaveDialog({
+        title: 'Export Trade Harbour Backup',
+        defaultPath: `TradeHarbour-backup-${new Date().toISOString().slice(0, 10)}.json`,
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      })
+
+      if (result.canceled) {
+        setBackupStatus('')
+        return
+      }
+
+      const exportResult = await window.electronAPI.backup.exportUserData()
+
+      if (!exportResult.success) {
+        setBackupStatus(`Export failed: ${exportResult.error}`)
+        return
+      }
+
+      // Save the data to the selected file
+      const blob = new Blob([exportResult.data], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = result.filePath?.split(/[\\\/]/).pop() || 'backup.json'
+      link.click()
+      URL.revokeObjectURL(url)
+
+      setBackupStatus('Backup exported successfully!')
+      setTimeout(() => setBackupStatus(''), 3000)
+    } catch (error) {
+      setBackupStatus(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setTimeout(() => setBackupStatus(''), 5000)
+    }
+  }
+
+  const importBackup = async () => {
+    try {
+      setBackupStatus('Importing...')
+
+      const result = await window.electronAPI.dialog.showOpenDialog({
+        title: 'Import Trade Harbour Backup',
+        properties: ['openFile'],
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      })
+
+      if (result.canceled || !result.filePaths?.[0]) {
+        setBackupStatus('')
+        return
+      }
+
+      const confirmed = window.confirm(
+        'This will replace your current account data and settings. A backup of your current data will be created automatically. Continue?'
+      )
+
+      if (!confirmed) {
+        setBackupStatus('')
+        return
+      }
+
+      const importResult = await window.electronAPI.backup.importUserData(result.filePaths[0])
+
+      if (!importResult.success) {
+        setBackupStatus(`Import failed: ${importResult.error}`)
+        return
+      }
+
+      setBackupStatus('Backup imported successfully! Please restart the application for changes to take effect.')
+      setTimeout(() => setBackupStatus(''), 10000)
+    } catch (error) {
+      setBackupStatus(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setTimeout(() => setBackupStatus(''), 5000)
+    }
+  }
+
+  const openDataFolder = () => {
+    if (userDataPath) {
+      window.electronAPI.shell.openExternal(`file://${userDataPath}`)
+    }
+  }
+
+  const switchStorageMode = async (newMode: 'portable' | 'system') => {
+    if (!storageInfo) return
+
+    const confirmed = window.confirm(
+      `Switch to ${newMode} mode?\n\n` +
+      `Current: ${storageInfo.currentPath}\n` +
+      `New: ${newMode === 'portable' ? storageInfo.portablePath : storageInfo.systemPath}\n\n` +
+      `Your data will be copied to the new location. Continue?`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setSwitchingMode(true)
+      setBackupStatus('Switching storage mode...')
+
+      const result = await window.electronAPI.app.switchStorageMode(newMode)
+
+      if (result.success) {
+        // Refresh storage info
+        const newInfo = await window.electronAPI.app.getStorageInfo()
+        setStorageInfo(newInfo)
+        setUserDataPath(newInfo.currentPath)
+        setBackupStatus(`Successfully switched to ${newMode} mode! Data is now stored at: ${result.newPath}`)
+      } else {
+        setBackupStatus(`Failed to switch storage mode: ${result.error}`)
+      }
+    } catch (error) {
+      setBackupStatus(`Error switching storage mode: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setSwitchingMode(false)
+      setTimeout(() => setBackupStatus(''), 5000)
+    }
+  }
+
   const tabs = [
-    { id: 'overview', label: 'Overview' },
+    { id: 'backup', label: 'Backup & Restore' },
+    { id: 'overview', label: 'API Overview' },
     { id: 'balances', label: 'Balances' },
     { id: 'positions', label: 'Positions' },
     { id: 'trades', label: 'Recent Trades' },
@@ -149,7 +293,7 @@ export const Diagnostics = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          API Diagnostics
+          Diagnostics & Backup
         </h1>
         <div className="flex items-center space-x-4">
           <button
@@ -240,6 +384,171 @@ export const Diagnostics = () => {
 
           {/* Content */}
           <div className="space-y-6">
+            {activeTab === 'backup' && (
+              <div className="space-y-6">
+                {/* Storage Mode Selection */}
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold mb-4">⚙️ Storage Mode</h3>
+                  {storageInfo ? (
+                    <div className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                          storageInfo.currentMode === 'system'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        }`}
+                        onClick={() => !switchingMode && switchStorageMode('system')}>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">🗂️ System Mode</h4>
+                            {storageInfo.currentMode === 'system' && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Current</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted mb-2">
+                            Data stored in Windows AppData folder. Survives application updates automatically.
+                          </p>
+                          <div className="text-xs font-mono break-all text-gray-600 dark:text-gray-400">
+                            {storageInfo.systemPath}
+                          </div>
+                        </div>
+
+                        <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                          storageInfo.currentMode === 'portable'
+                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        }`}
+                        onClick={() => !switchingMode && switchStorageMode('portable')}>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">💾 Portable Mode</h4>
+                            {storageInfo.currentMode === 'portable' && (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Current</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted mb-2">
+                            Data stored next to the .exe file. Perfect for USB drives and easy backups.
+                          </p>
+                          <div className="text-xs font-mono break-all text-gray-600 dark:text-gray-400">
+                            {storageInfo.portablePath}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-4 pt-2">
+                        <button
+                          onClick={openDataFolder}
+                          disabled={!userDataPath}
+                          className="btn-secondary text-sm"
+                        >
+                          📂 Open Current Data Folder
+                        </button>
+                        <span className="text-xs text-muted">
+                          Contains: encrypted account data, settings, trading history
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-muted">Loading storage information...</div>
+                  )}
+                </div>
+
+                {/* Backup & Restore */}
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold mb-4">💾 Backup & Restore</h3>
+                  <div className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <h4 className="font-medium">Export Backup</h4>
+                        <p className="text-sm text-muted">
+                          Save all your account data, settings, and trading history to a secure backup file.
+                        </p>
+                        <button
+                          onClick={exportBackup}
+                          className="btn-primary w-full"
+                          disabled={backupStatus.includes('...')}
+                        >
+                          📤 Export Data Backup
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        <h4 className="font-medium">Import Backup</h4>
+                        <p className="text-sm text-muted">
+                          Restore your data from a previous backup file. This will replace current data.
+                        </p>
+                        <button
+                          onClick={importBackup}
+                          className="btn-secondary w-full"
+                          disabled={backupStatus.includes('...')}
+                        >
+                          📥 Import Data Backup
+                        </button>
+                      </div>
+                    </div>
+
+                    {backupStatus && (
+                      <div className={`p-3 rounded ${
+                        backupStatus.includes('successfully')
+                          ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                          : backupStatus.includes('failed')
+                          ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                      }`}>
+                        {backupStatus}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Upgrade Instructions */}
+                <div className="card p-6">
+                  <h3 className="text-lg font-semibold mb-4">🚀 Upgrading to New Versions</h3>
+                  {storageInfo && (
+                    <div className="space-y-4">
+                      {storageInfo.currentMode === 'system' ? (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded">
+                          <div className="font-medium text-blue-700 dark:text-blue-300 mb-2">
+                            🗂️ System Mode - Automatic Data Persistence
+                          </div>
+                          <div className="text-sm text-blue-600 dark:text-blue-400 mb-3">
+                            Your data automatically persists between versions! No manual backup needed.
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div><strong>To upgrade:</strong></div>
+                            <ol className="list-decimal list-inside space-y-1 ml-4">
+                              <li>Close Trade Harbour</li>
+                              <li>Download the new version</li>
+                              <li>Replace the old .exe file (or install in new location)</li>
+                              <li>Run the new version - all your data will be there!</li>
+                            </ol>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded">
+                          <div className="font-medium text-green-700 dark:text-green-300 mb-2">
+                            💾 Portable Mode - Manual Data Transfer
+                          </div>
+                          <div className="text-sm text-green-600 dark:text-green-400 mb-3">
+                            Data is stored next to the .exe file. You can easily move the entire folder.
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div><strong>To upgrade:</strong></div>
+                            <ol className="list-decimal list-inside space-y-1 ml-4">
+                              <li>Close Trade Harbour</li>
+                              <li>Download the new version</li>
+                              <li>Copy your <code>data/</code> folder to the new version directory</li>
+                              <li>Run the new version - your data will be preserved!</li>
+                            </ol>
+                            <div className="mt-2 text-xs">
+                              <strong>Pro tip:</strong> You can also just replace the .exe file in your current folder to keep all data in place.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'overview' && (
               <div className="grid gap-6">
                 {(selectedAccount ? [accounts.find(a => a.id === selectedAccount)!] : accounts).map(account => {
