@@ -83,15 +83,7 @@
         }
       ],
       "forceCodeSigning": false,
-      "signAndEditExecutable": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    },
-    "zip": {
+      "signAndEditExecutable": false,
       "artifactName": "TradeHarbour-${version}-portable.zip"
     }
   }
