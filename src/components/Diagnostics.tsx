@@ -20,8 +20,6 @@ export const Diagnostics = () => {
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false)
   const [userDataPath, setUserDataPath] = useState<string>('')
   const [backupStatus, setBackupStatus] = useState<string>('')
-  const [storageInfo, setStorageInfo] = useState<any>(null)
-  const [switchingMode, setSwitchingMode] = useState<boolean>(false)
 
   const runDiagnostics = async () => {
     if (accounts.length === 0) return
@@ -131,18 +129,17 @@ export const Diagnostics = () => {
     alert('Data copied to clipboard!')
   }
 
-  // Get storage info on component mount
+  // Get user data path on component mount
   useEffect(() => {
-    const getStorageInfo = async () => {
+    const getUserDataPath = async () => {
       try {
-        const info = await window.electronAPI.app.getStorageInfo()
-        setStorageInfo(info)
-        setUserDataPath(info.currentPath)
+        const path = await window.electronAPI.app.getUserDataPath()
+        setUserDataPath(path)
       } catch (error) {
-        console.error('Failed to get storage info:', error)
+        console.error('Failed to get user data path:', error)
       }
     }
-    getStorageInfo()
+    getUserDataPath()
   }, [])
 
   const exportBackup = async () => {
@@ -235,40 +232,6 @@ export const Diagnostics = () => {
     }
   }
 
-  const switchStorageMode = async (newMode: 'portable' | 'system') => {
-    if (!storageInfo) return
-
-    const confirmed = window.confirm(
-      `Switch to ${newMode} mode?\n\n` +
-      `Current: ${storageInfo.currentPath}\n` +
-      `New: ${newMode === 'portable' ? storageInfo.portablePath : storageInfo.systemPath}\n\n` +
-      `Your data will be copied to the new location. Continue?`
-    )
-
-    if (!confirmed) return
-
-    try {
-      setSwitchingMode(true)
-      setBackupStatus('Switching storage mode...')
-
-      const result = await window.electronAPI.app.switchStorageMode(newMode)
-
-      if (result.success) {
-        // Refresh storage info
-        const newInfo = await window.electronAPI.app.getStorageInfo()
-        setStorageInfo(newInfo)
-        setUserDataPath(newInfo.currentPath)
-        setBackupStatus(`Successfully switched to ${newMode} mode! Data is now stored at: ${result.newPath}`)
-      } else {
-        setBackupStatus(`Failed to switch storage mode: ${result.error}`)
-      }
-    } catch (error) {
-      setBackupStatus(`Error switching storage mode: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setSwitchingMode(false)
-      setTimeout(() => setBackupStatus(''), 5000)
-    }
-  }
 
   const tabs = [
     { id: 'backup', label: 'Backup & Restore' },
@@ -386,69 +349,36 @@ export const Diagnostics = () => {
           <div className="space-y-6">
             {activeTab === 'backup' && (
               <div className="space-y-6">
-                {/* Storage Mode Selection */}
+                {/* Portable Data Storage Info */}
                 <div className="card p-6">
-                  <h3 className="text-lg font-semibold mb-4">⚙️ Storage Mode</h3>
-                  {storageInfo ? (
-                    <div className="space-y-4">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                          storageInfo.currentMode === 'system'
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                        }`}
-                        onClick={() => !switchingMode && switchStorageMode('system')}>
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">🗂️ System Mode</h4>
-                            {storageInfo.currentMode === 'system' && (
-                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Current</span>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted mb-2">
-                            Data stored in Windows AppData folder. Survives application updates automatically.
-                          </p>
-                          <div className="text-xs font-mono break-all text-gray-600 dark:text-gray-400">
-                            {storageInfo.systemPath}
-                          </div>
-                        </div>
-
-                        <div className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                          storageInfo.currentMode === 'portable'
-                            ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                        }`}
-                        onClick={() => !switchingMode && switchStorageMode('portable')}>
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">💾 Portable Mode</h4>
-                            {storageInfo.currentMode === 'portable' && (
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Current</span>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted mb-2">
-                            Data stored next to the .exe file. Perfect for USB drives and easy backups.
-                          </p>
-                          <div className="text-xs font-mono break-all text-gray-600 dark:text-gray-400">
-                            {storageInfo.portablePath}
-                          </div>
-                        </div>
+                  <h3 className="text-lg font-semibold mb-4">📁 Portable Data Storage</h3>
+                  <div className="space-y-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-green-700 dark:text-green-300">💾 Portable Mode Active</h4>
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Current</span>
                       </div>
-
-                      <div className="flex items-center space-x-4 pt-2">
-                        <button
-                          onClick={openDataFolder}
-                          disabled={!userDataPath}
-                          className="btn-secondary text-sm"
-                        >
-                          📂 Open Current Data Folder
-                        </button>
-                        <span className="text-xs text-muted">
-                          Contains: encrypted account data, settings, trading history
-                        </span>
+                      <p className="text-sm text-green-600 dark:text-green-400 mb-2">
+                        Data is stored next to the .exe file. Perfect for USB drives, easy backups, and complete portability.
+                      </p>
+                      <div className="text-xs font-mono break-all text-green-600 dark:text-green-400">
+                        {userDataPath || 'Loading...'}
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-muted">Loading storage information...</div>
-                  )}
+
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={openDataFolder}
+                        disabled={!userDataPath}
+                        className="btn-secondary text-sm"
+                      >
+                        📂 Open Data Folder
+                      </button>
+                      <span className="text-xs text-muted">
+                        Contains: encrypted account data, settings, trading history
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Backup & Restore */}
@@ -501,50 +431,47 @@ export const Diagnostics = () => {
                 {/* Upgrade Instructions */}
                 <div className="card p-6">
                   <h3 className="text-lg font-semibold mb-4">🚀 Upgrading to New Versions</h3>
-                  {storageInfo && (
-                    <div className="space-y-4">
-                      {storageInfo.currentMode === 'system' ? (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded">
-                          <div className="font-medium text-blue-700 dark:text-blue-300 mb-2">
-                            🗂️ System Mode - Automatic Data Persistence
-                          </div>
-                          <div className="text-sm text-blue-600 dark:text-blue-400 mb-3">
-                            Your data automatically persists between versions! No manual backup needed.
-                          </div>
-                          <div className="space-y-2 text-sm">
+                  <div className="space-y-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded">
+                      <div className="font-medium text-green-700 dark:text-green-300 mb-2">
+                        💾 Portable Application - Two Ways to Run
+                      </div>
+                      <div className="text-sm text-green-600 dark:text-green-400 mb-3">
+                        Trade Harbour can be used in two ways, both storing data in the portable `data/` folder.
+                      </div>
+
+                      <div className="space-y-4 text-sm">
+                        <div>
+                          <div className="font-medium mb-2">📦 Option 1: Portable Version (Recommended)</div>
+                          <div className="space-y-1 ml-4">
                             <div><strong>To upgrade:</strong></div>
                             <ol className="list-decimal list-inside space-y-1 ml-4">
                               <li>Close Trade Harbour</li>
-                              <li>Download the new version</li>
-                              <li>Replace the old .exe file (or install in new location)</li>
-                              <li>Run the new version - all your data will be there!</li>
-                            </ol>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded">
-                          <div className="font-medium text-green-700 dark:text-green-300 mb-2">
-                            💾 Portable Mode - Manual Data Transfer
-                          </div>
-                          <div className="text-sm text-green-600 dark:text-green-400 mb-3">
-                            Data is stored next to the .exe file. You can easily move the entire folder.
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <div><strong>To upgrade:</strong></div>
-                            <ol className="list-decimal list-inside space-y-1 ml-4">
-                              <li>Close Trade Harbour</li>
-                              <li>Download the new version</li>
+                              <li>Download the new version from GitHub releases</li>
                               <li>Copy your <code>data/</code> folder to the new version directory</li>
                               <li>Run the new version - your data will be preserved!</li>
                             </ol>
                             <div className="mt-2 text-xs">
-                              <strong>Pro tip:</strong> You can also just replace the .exe file in your current folder to keep all data in place.
+                              <strong>Pro tip:</strong> Just replace the .exe file in your current folder to keep all data in place.
                             </div>
                           </div>
                         </div>
-                      )}
+
+                        <div>
+                          <div className="font-medium mb-2">🛠️ Option 2: Development from Git Repository</div>
+                          <div className="space-y-1 ml-4">
+                            <div><strong>To upgrade:</strong></div>
+                            <ol className="list-decimal list-inside space-y-1 ml-4">
+                              <li>Close Trade Harbour</li>
+                              <li><code>git pull origin main</code> to get latest changes</li>
+                              <li><code>npm install</code> (if dependencies changed)</li>
+                              <li><code>npm run dev</code> - your data in the local <code>data/</code> folder remains</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-name: Build Windows Executable
+name: Windows Release Portable
 
 on:
   push:
@@ -38,7 +38,7 @@ jobs:
     - name: Upload executables as artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: TradeHarbour-Windows-${{ github.ref_name }}
+        name: TradeHarbour-Windows-Portable-${{ github.ref_name }}
         path: release/*.exe
         retention-days: 90
 
@@ -47,21 +47,37 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: release/*.exe
-        name: Trade Harbour ${{ github.ref_name }}
+        name: Trade Harbour ${{ github.ref_name }} - Windows Portable
         body: |
-          # Trade Harbour ${{ github.ref_name }}
+          # Trade Harbour ${{ github.ref_name }} - Windows Portable Release
+
+          ## 💾 Portable Application
+          This is a **100% portable application** - no installation required!
 
           ## Downloads
-          - **Trade Harbour Setup.exe** - Full installer with shortcuts
-          - **TradeHarbour-portable.exe** - Portable version, no installation required
+          - **Trade Harbour Setup.exe** - Traditional installer (creates shortcuts)
+          - **TradeHarbour-portable.exe** - Portable version (recommended)
 
-          ## Requirements
+          ## ✨ Features
+          - **True Portability**: Data stored in `data/` folder next to .exe
+          - **USB Friendly**: Run from anywhere - USB drives, cloud folders
+          - **Easy Backups**: Just copy the entire folder
+          - **No Registry**: Leaves your system completely clean
+
+          ## 🚀 Usage
+          1. Download **TradeHarbour-portable.exe** (recommended)
+          2. Create a folder (e.g., "Trade Harbour")
+          3. Place the .exe in the folder
+          4. Run it - a `data/` folder will be created automatically
+          5. Add your API keys and start trading!
+
+          ## 📋 Requirements
           - Windows 10/11 (64-bit)
+          - No additional software needed
 
-          ## Usage
-          1. Download the .exe file you prefer
-          2. Run it directly
-          3. No additional software needed!
+          ## 🔄 Upgrading
+          - **Easy**: Copy your `data/` folder to the new version
+          - **Easier**: Just replace the .exe file in your current folder
         draft: false
         prerelease: false
       env:

@@ -1,6 +1,32 @@
 # Bybit Dashboard Changelog
 
-## Version 1.4.6 - September 29, 2025
+## Version 1.4.8 - September 29, 2025
+
+### 💾 **Simplified to 100% Portable Application**
+- **Portable-Only Storage**: Data now ONLY stored in `data/` folder next to .exe
+- **Removed AppData**: No more Windows system directories - truly portable
+- **Removed User Choice**: Simplified UX - one storage mode, one location
+- **USB-Friendly**: Perfect for running from USB drives, cloud folders
+- **Zero Registry Impact**: Leaves your system completely clean
+
+### 🎯 **Two Ways to Run**
+- **Portable Release**: Download .exe from GitHub releases (recommended)
+- **Development**: Clone repository and `npm run dev` (both use same `data/` folder)
+
+### 🔧 **Technical Changes**
+- **Simplified Storage Logic**: Removed dual-mode complexity
+- **Enhanced Portability**: Data directory always relative to executable
+- **Cleaner UI**: Removed storage mode selection interface
+- **Updated Documentation**: Clear portable-only instructions
+
+### 📦 **Release Improvements**
+- **GitHub Actions**: Now named "Windows Release Portable"
+- **Better Release Notes**: Clear portable application messaging
+- **Enhanced Instructions**: Step-by-step portable setup guide
+
+---
+
+## Version 1.4.6 - September 29, 2025 (Previous)
 
 ### 🆕 **Major Feature: Dual Storage Modes**
 - **User Choice Storage System**: Choose between System Mode and Portable Mode

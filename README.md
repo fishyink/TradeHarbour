@@ -86,41 +86,37 @@ npm run dist         # Create distributable packages
 
 ## 🔄 Upgrading to New Versions
 
-### ⚙️ **Storage Modes - You Choose!**
+### 💾 **Portable Application - Two Ways to Run**
 
-Trade Harbour offers two storage modes for your data:
+Trade Harbour is a **100% portable application** that stores all data in a `data/` folder next to the executable. This means:
 
-#### 🗂️ **System Mode (Default)**
-- **Data location**: Windows AppData folder (`%APPDATA%\trade-harbour\`)
-- **Pros**: Automatic data persistence, survives app updates, multiple installations possible
-- **Best for**: Most users, permanent installations
+- ✅ **True portability** - run from USB drives, cloud folders, anywhere
+- ✅ **Easy backups** - just copy the entire folder
+- ✅ **No registry changes** - leaves your system clean
+- ✅ **Multiple instances** - run different versions side by side
+- ✅ **Clear data ownership** - you can see exactly where your data is
 
-#### 💾 **Portable Mode**
-- **Data location**: `data/` folder next to the .exe file
-- **Pros**: True portability, easy backups, USB-friendly, clear data ownership
-- **Best for**: USB drives, temporary setups, multiple separate instances
+### 🚀 **Two Ways to Use Trade Harbour:**
 
-> **Switch anytime**: Go to Diagnostics → Backup & Restore → Storage Mode
+#### 📦 **Option 1: Portable Release (Recommended)**
+Download pre-built executable from GitHub releases:
 
-### 🚀 **How to Upgrade:**
-
-#### If Using System Mode 🗂️
-Your data **automatically persists** between versions:
-
-1. **Download** the new version from [Releases](https://github.com/fishyink/tradeharbour/releases)
-2. **Close** the current Trade Harbour application
-3. **Replace** the old .exe file (or install anywhere)
-4. **Run** the new version - all your data will be there!
-
-#### If Using Portable Mode 💾
-Your data travels with the application folder:
-
-1. **Download** the new version
-2. **Close** the current Trade Harbour application
+**To upgrade:**
+1. **Close** Trade Harbour
+2. **Download** the new version from [Releases](https://github.com/fishyink/tradeharbour/releases)
 3. **Copy your `data/` folder** to the new version directory
 4. **Run** the new version - your data is preserved!
 
-> **Pro tip**: In portable mode, you can also just replace the .exe file in your current folder
+> **Pro tip**: Just replace the .exe file in your current folder to keep all data in place
+
+#### 🛠️ **Option 2: Development from Source**
+Clone and run from the Git repository:
+
+**To upgrade:**
+1. **Close** Trade Harbour
+2. **Pull latest changes**: `git pull origin main`
+3. **Update dependencies**: `npm install` (if needed)
+4. **Start**: `npm run dev` - your data in the local `data/` folder remains
 
 ### 🛡️ **Built-in Backup & Restore**
 
@@ -129,18 +125,19 @@ Trade Harbour includes backup tools:
 1. **Go to**: Diagnostics → Backup & Restore
 2. **Export**: Creates a complete backup file
 3. **Import**: Restores from backup file
-4. **Switch Modes**: Migrate between storage modes safely
+4. **View Location**: See exactly where your data is stored
 
-### 📍 **Find Your Data:**
-- **System Mode**: `%APPDATA%\trade-harbour\`
-- **Portable Mode**: `[AppFolder]\data\`
-- **In-app**: Diagnostics → Backup & Restore shows current location
+### 📍 **Data Location:**
+- **Portable Release**: `[YourFolder]\data\`
+- **Development**: `[RepoFolder]\data\`
+- **In-app**: Diagnostics → Backup & Restore shows exact path
 
 ### ⚠️ **Important Notes:**
-- **Choose your preferred storage mode** on first run
-- **Never run multiple versions simultaneously** (data conflicts possible)
+- **Your data travels with the app** - perfect for USB drives
+- **Never run multiple versions simultaneously** from the same folder
 - **Always close the app before replacing** the executable
 - **Export a backup** before major version changes
+- **No installation required** - just download and run
 
 ---
 
