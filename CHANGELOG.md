@@ -1,6 +1,41 @@
 # Bybit Dashboard Changelog
 
-## Version 1.4.8 - September 29, 2025
+## Version 1.4.9 - September 29, 2025
+
+### 🛠️ **Comprehensive User Support & Troubleshooting**
+- **Automated Dependency Installer**: Added `install-dependencies.bat` for one-click setup
+  - Downloads and installs Microsoft Visual C++ Redistributable automatically
+  - Checks Windows Update status and provides guidance
+  - User-friendly progress reporting and error handling
+
+- **Quick White Screen Fix**: Added `fix-white-screen.bat` for immediate issue resolution
+  - Streamlined installer for the most common issue (missing VC++ Redistributable)
+  - Simple one-click solution for users experiencing blank screens
+
+### 📖 **Enhanced Documentation**
+- **Comprehensive Troubleshooting Guide**: Added detailed white screen solutions to README
+  - Step-by-step Visual C++ Redistributable installation
+  - Windows update requirements and compatibility info
+  - Antivirus exception instructions and admin permissions guide
+  - Debug mode activation for advanced troubleshooting
+
+- **Improved User Data README**: Enhanced data folder documentation with troubleshooting links
+  - Clear upgrade instructions with troubleshooting references
+  - Direct links to GitHub support resources
+
+### 📦 **Release Package Improvements**
+- **Bundled Support Files**: Troubleshooting .bat files included with portable release
+- **Complete Self-Service**: Users can resolve issues without external downloads
+- **Professional Support**: Clear escalation path to GitHub issues
+
+### 🎯 **User Experience**
+- **Zero-Knowledge Installation**: Users don't need to know what dependencies they need
+- **One-Click Solutions**: Batch files handle all complexity automatically
+- **Clear Documentation**: Every possible issue has a documented solution
+
+---
+
+## Version 1.4.8 - September 29, 2025 (Previous)
 
 ### 💾 **Simplified to 100% Portable Application**
 - **Portable-Only Storage**: Data now ONLY stored in `data/` folder next to .exe

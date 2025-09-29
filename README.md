@@ -18,10 +18,45 @@ A modern, open-source **desktop application** for monitoring multiple cryptocurr
 Trade Harbour brings all your cryptocurrency trading accounts into one secure **desktop dashboard**. Monitor multiple exchanges, track performance, and analyze your trading data - all from a single interface.
 
 ### 🖥️ Platform Requirements
-- **Desktop Application**: Windows, macOS, or Linux
-- **NOT supported**: Web browsers, mobile devices, online access
-- **Requires**: Installation on your computer
-- **Data Storage**: All data stays local and private on your machine
+- **Windows 10/11 (64-bit)** - Version 1903 or later recommended
+- **Microsoft Visual C++ Redistributable** - Usually pre-installed
+- **Desktop Application**: NOT supported in web browsers or mobile
+- **Data Storage**: All data stays local and portable with the app
+
+## ❓ Troubleshooting
+
+### White Screen / Won't Start?
+If you see a blank white screen, try these solutions:
+
+#### 1. **Install Visual C++ Redistributable** (Most Common Fix)
+- Download from: [Microsoft Visual C++ Downloads](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+- Install the **x64 version**
+- Restart Trade Harbour
+
+#### 2. **Update Windows**
+- Ensure Windows 10/11 is updated to latest version
+- Minimum: Windows 10 version 1903
+
+#### 3. **Check Antivirus**
+- Some antivirus software blocks unsigned executables
+- Add Trade Harbour to your antivirus exceptions
+- Windows Defender usually works fine
+
+#### 4. **Run as Administrator**
+- Right-click TradeHarbour.exe → "Run as administrator"
+- This can resolve permission issues
+
+#### 5. **Enable Debug Mode**
+For advanced troubleshooting:
+```cmd
+set ELECTRON_DEBUG=1
+TradeHarbour-1.4.8-portable.exe
+```
+This opens developer tools to see any error messages.
+
+### Still Having Issues?
+- Check [GitHub Issues](https://github.com/fishyink/tradeharbour/issues) for solutions
+- Create a new issue with your system details
 
 ---
 

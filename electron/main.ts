@@ -41,6 +41,14 @@ TO UPGRADE TO A NEW VERSION:
 
 BACKUP: You can backup this folder anywhere for safekeeping.
 
+TROUBLESHOOTING (if app shows white screen):
+1. Install Microsoft Visual C++ Redistributable (x64)
+2. Update Windows to latest version
+3. Run as Administrator
+4. Check antivirus exceptions
+
+For more help: https://github.com/fishyink/TradeHarbour
+
 Generated: ${new Date().toISOString()}
 `
     fs.writeFileSync(readmePath, readmeContent)
@@ -304,7 +312,7 @@ ipcMain.handle('import-user-data', async (_, filePath: string) => {
 
 
 ipcMain.handle('get-app-version', () => {
-  return '1.4.8' // Our app version, not Electron version
+  return '1.4.9' // Our app version, not Electron version
 })
 
 autoUpdater.on('update-available', () => {
