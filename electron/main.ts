@@ -1,6 +1,13 @@
 import { app, BrowserWindow, Menu, ipcMain, dialog, protocol } from 'electron'
-import { autoUpdater } from 'electron-updater'
 import Store from 'electron-store'
+
+// Conditional import of electron-updater for better error handling
+let autoUpdater: any = null
+try {
+  autoUpdater = require('electron-updater').autoUpdater
+} catch (error) {
+  console.warn('electron-updater not available:', error.message)
+}
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -259,7 +266,7 @@ app.whenReady().then(async () => {
 
   await createWindow()
 
-  if (!isDev) {
+  if (!isDev && autoUpdater) {
     autoUpdater.checkForUpdatesAndNotify()
   }
 
@@ -444,27 +451,29 @@ ipcMain.handle('fs-file-exists', async (_, filePath: string) => {
   }
 })
 
-autoUpdater.on('update-available', () => {
-  dialog.showMessageBox(mainWindow!, {
-    type: 'info',
-    title: 'Update available',
-    message: 'A new version is available. It will be downloaded in the background.',
-    buttons: ['OK']
+if (autoUpdater) {
+  autoUpdater.on('update-available', () => {
+    dialog.showMessageBox(mainWindow!, {
+      type: 'info',
+      title: 'Update available',
+      message: 'A new version is available. It will be downloaded in the background.',
+      buttons: ['OK']
+    })
   })
-})
 
-autoUpdater.on('update-downloaded', () => {
-  dialog.showMessageBox(mainWindow!, {
-    type: 'info',
-    title: 'Update ready',
-    message: 'Update downloaded. The application will restart to apply the update.',
-    buttons: ['Restart', 'Later']
-  }).then((result) => {
-    if (result.response === 0) {
-      autoUpdater.quitAndInstall()
-    }
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox(mainWindow!, {
+      type: 'info',
+      title: 'Update ready',
+      message: 'Update downloaded. The application will restart to apply the update.',
+      buttons: ['Restart', 'Later']
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall()
+      }
+    })
   })
-})
+}
 
 if (!isDev) {
   Menu.setApplicationMenu(null)
