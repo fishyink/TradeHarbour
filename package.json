@@ -56,14 +56,19 @@
     },
     "files": [
       "dist/**/*",
-      "data/**/*",
+      "data/.gitkeep",
+      "data/README.md",
       "assets/**/*",
       "package.json"
     ],
     "extraResources": [
       {
-        "from": "data",
-        "to": "data"
+        "from": "data/.gitkeep",
+        "to": "data/.gitkeep"
+      },
+      {
+        "from": "data/README.md",
+        "to": "data/README.md"
       }
     ],
     "win": {
@@ -77,7 +82,8 @@
           "arch": ["x64"]
         }
       ],
-      "forceCodeSigning": false
+      "forceCodeSigning": false,
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,

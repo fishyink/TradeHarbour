@@ -1,17 +1,27 @@
 # ⚓ Trade Harbour
 **One harbour, one dashboard, all your trades.**
 
-A modern, open-source trading dashboard for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
+A modern, open-source **desktop application** for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
 
-![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.3.1-blue.svg)
+> **⚠️ IMPORTANT: This is a desktop application only**
+> Trade Harbour is built with Electron and **will NOT run in web browsers**. You must download and install the desktop application to use it.
+
+![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.3.2-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![GitHub](https://img.shields.io/badge/GitHub-fishyink%2Ftradeharbour-black.svg)
+![Platform](https://img.shields.io/badge/Platform-Desktop%20Only-red.svg)
 
 ---
 
 ## 🌊 What is Trade Harbour?
 
-Trade Harbour brings all your cryptocurrency trading accounts into one secure dashboard. Monitor multiple exchanges, track performance, and analyze your trading data - all from a single interface.
+Trade Harbour brings all your cryptocurrency trading accounts into one secure **desktop dashboard**. Monitor multiple exchanges, track performance, and analyze your trading data - all from a single interface.
+
+### 🖥️ Platform Requirements
+- **Desktop Application**: Windows, macOS, or Linux
+- **NOT supported**: Web browsers, mobile devices, online access
+- **Requires**: Installation on your computer
+- **Data Storage**: All data stays local and private on your machine
 
 ---
 
@@ -29,11 +39,20 @@ Trade Harbour brings all your cryptocurrency trading accounts into one secure da
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Option 1: Download Release (Recommended)
+1. **Download the latest release** from the [Releases](https://github.com/fishyink/tradeharbour/releases) page
+2. **Extract and run** the executable file
+3. **No installation required** - it's a portable application
+
+### Option 2: Build from Source
+> **Note**: This requires technical knowledge and is only for developers
+
+#### Prerequisites
 - **Node.js 18+** and npm
 - **Git**
+- **Windows/Mac/Linux** (desktop environment required)
 
-### Installation
+#### Development Installation
 
 1. **Clone the repository**
    ```bash
@@ -46,10 +65,16 @@ Trade Harbour brings all your cryptocurrency trading accounts into one secure da
    npm install
    ```
 
-3. **Start the application**
+3. **Start the development application**
    ```bash
    npm run dev
    ```
+
+#### Building for Distribution
+```bash
+npm run build        # Build the application
+npm run dist         # Create distributable packages
+```
 
 ### First Launch
 

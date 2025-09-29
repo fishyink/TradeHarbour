@@ -6,17 +6,39 @@ import * as fs from 'fs'
 
 const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
 
-// Ensure data directory exists
-const dataDir = path.join(__dirname, '../data')
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
-}
+// Ensure data directory exists - use app.getPath for proper user data location
+let dataDir: string
+let store: Store
 
-const store = new Store({
-  name: 'bybit-dashboard-config',
-  encryptionKey: 'bybit-dashboard-secure-key-2024',
-  cwd: dataDir, // Store data in local 'data' folder
-})
+try {
+  // Use the appropriate data directory based on environment
+  if (app.isPackaged) {
+    // In packaged apps, use the system's userData directory
+    dataDir = app.getPath('userData')
+  } else {
+    // In development, use local data folder
+    dataDir = path.join(__dirname, '../data')
+  }
+
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true })
+  }
+
+  store = new Store({
+    name: 'bybit-dashboard-config',
+    encryptionKey: 'bybit-dashboard-secure-key-2024',
+    cwd: dataDir,
+  })
+
+  console.log('Data directory initialized:', dataDir)
+} catch (error) {
+  console.error('Failed to initialize data directory:', error)
+  // Fallback to default electron-store behavior
+  store = new Store({
+    name: 'bybit-dashboard-config',
+    encryptionKey: 'bybit-dashboard-secure-key-2024',
+  })
+}
 
 let mainWindow: BrowserWindow | null = null
 
@@ -188,7 +210,7 @@ ipcMain.handle('show-save-dialog', async (_, options) => {
 })
 
 ipcMain.handle('get-app-version', () => {
-  return '1.3.0' // Our app version, not Electron version
+  return '1.3.2' // Our app version, not Electron version
 })
 
 autoUpdater.on('update-available', () => {

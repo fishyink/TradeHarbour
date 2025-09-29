@@ -1,6 +1,38 @@
 # Bybit Dashboard Changelog
 
-## Version 1.3.2 - September 28, 2025
+## Version 1.3.2 - September 29, 2025
+
+### 🔧 Critical Bug Fixes & Security Improvements
+- **Fixed Portable Version Storage Errors**: Resolved ENOTDIR storage errors in portable releases
+  - Uses proper system userData directory for packaged apps instead of relative paths
+  - Improved error handling for storage operations to prevent crashes
+  - Fixed "Error invoking remote method 'store-set': Error: ENOTDIR, not a directory" issue
+
+- **Security Enhancement - Removed User Data from Releases**:
+  - **CRITICAL**: API keys and account data are no longer packaged with releases
+  - Updated build configuration to exclude all user data files (*.json, *.db, etc.)
+  - Only includes empty data directory structure for proper initialization
+
+- **Enhanced Error Handling**:
+  - Better fallback behavior when storage initialization fails
+  - User-friendly error messages instead of application crashes
+  - Graceful handling of missing directories in portable environments
+
+### 📖 Documentation Updates
+- **Clear Desktop-Only Requirements**: Updated README with prominent warnings
+  - Added clear "Desktop Application Only" badges and warnings
+  - Specified that the app will NOT run in web browsers
+  - Added platform requirements section (Windows/Mac/Linux desktop only)
+  - Reorganized Quick Start guide with download vs. build options
+
+### 🏗️ Build System Improvements
+- **Disabled Code Signing**: Removed problematic code signing requirements causing build failures
+- **Cleaner Release Packages**: Eliminated inclusion of development-only files
+- **Version Sync**: Updated all version references to 1.3.2
+
+---
+
+## Version 1.3.2 - September 28, 2025 (Previous Release Notes)
 
 ### 📅 Calendar Feature Enhancements
 - **Calendar P&L Visualization**: Comprehensive calendar view for trade analysis

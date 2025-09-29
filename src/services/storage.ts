@@ -57,6 +57,7 @@ class StorageService {
       return JSON.parse(decryptedData)
     } catch (error) {
       console.error('Error getting accounts:', error)
+      // Return empty array on any error to prevent crashes
       return []
     }
   }
@@ -76,7 +77,8 @@ class StorageService {
       await window.electronAPI.store.set('accounts', encryptedData)
     } catch (error) {
       console.error('Error saving account:', error)
-      throw error
+      // Show user-friendly error message instead of crashing
+      throw new Error('Failed to save account. Please check if the application has write permissions.')
     }
   }
 
