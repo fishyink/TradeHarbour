@@ -72,6 +72,13 @@ accounts-data/
 *.sqlite
 *.db
 
+# Local data directory (contains user accounts and settings)
+data/*.json
+data/*.db
+data/*.sqlite
+data/cache/
+data/logs/
+
 # LocalStorage and cached data
 storage/
 localStorage/
