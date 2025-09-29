@@ -49,17 +49,35 @@ jobs:
         $tagName = "${{ github.ref_name }}"
 
         # Create release using GitHub CLI (or use existing if it exists)
-        gh release create $tagName --title "Trade Harbour $tagName" --notes "Trade Harbour release $tagName - Download and run the .exe file directly!" || echo "Release already exists"
+        try {
+          gh release create $tagName --title "Trade Harbour $tagName" --notes "Trade Harbour release $tagName - Download and run the .exe file directly!"
+          Write-Host "Release created successfully"
+        } catch {
+          Write-Host "Release already exists or creation failed, continuing with upload..."
+        }
+
+        # Wait a moment for release to be ready
+        Start-Sleep -Seconds 2
 
         # Upload only the main distribution files (not helper files)
         Get-ChildItem release -Filter "*Setup*.exe" -Recurse | ForEach-Object {
           Write-Host "Uploading installer: $($_.FullName)"
-          gh release upload $tagName $_.FullName --clobber
+          try {
+            gh release upload $tagName $_.FullName --clobber
+            Write-Host "Successfully uploaded: $($_.Name)"
+          } catch {
+            Write-Host "Failed to upload: $($_.Name) - $_"
+          }
         }
 
         Get-ChildItem release -Filter "*portable*.exe" -Recurse | ForEach-Object {
           Write-Host "Uploading portable: $($_.FullName)"
-          gh release upload $tagName $_.FullName --clobber
+          try {
+            gh release upload $tagName $_.FullName --clobber
+            Write-Host "Successfully uploaded: $($_.Name)"
+          } catch {
+            Write-Host "Failed to upload: $($_.Name) - $_"
+          }
         }
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
