@@ -5,10 +5,16 @@ import * as path from 'path'
 
 const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
 
+// Ensure data directory exists
+const dataDir = path.join(__dirname, '../data')
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true })
+}
+
 const store = new Store({
   name: 'bybit-dashboard-config',
   encryptionKey: 'bybit-dashboard-secure-key-2024',
-  cwd: path.join(__dirname, '../data'), // Store data in local 'data' folder
+  cwd: dataDir, // Store data in local 'data' folder
 })
 
 let mainWindow: BrowserWindow | null = null
