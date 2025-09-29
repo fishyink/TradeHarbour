@@ -4,7 +4,7 @@ import Store from 'electron-store'
 import * as path from 'path'
 import * as fs from 'fs'
 
-const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+const isDev = !app.isPackaged
 
 // Portable-only storage - data folder next to executable
 let dataDir: string
@@ -351,7 +351,7 @@ ipcMain.handle('import-user-data', async (_, filePath: string) => {
 
 
 ipcMain.handle('get-app-version', () => {
-  return '1.5.1' // Our app version, not Electron version
+  return '1.5.2' // Our app version, not Electron version
 })
 
 autoUpdater.on('update-available', () => {

@@ -1,5 +1,21 @@
 # Bybit Dashboard Changelog
 
+## Version 1.5.2 - September 29, 2025
+
+### 🐛 **Critical Bugfix**
+- **Fixed White Screen Issue**: Resolved development mode detection in packaged builds
+  - Changed `isDev` logic from `process.env.NODE_ENV` to `!app.isPackaged`
+  - Packaged applications now correctly load local files instead of trying to connect to development server
+  - Eliminates blank/white screen issues on fresh installations
+  - No more failed attempts to connect to localhost:5173/8080/8081
+
+### 🚀 **Immediate Impact**
+- **Instant Fix**: Applications now load properly without requiring additional troubleshooting
+- **Universal Compatibility**: Works across all Windows configurations without dependencies
+- **Streamlined User Experience**: Eliminates the #1 user-reported issue
+
+---
+
 ## Version 1.5.1 - September 29, 2025
 
 ### 📦 **ZIP Release Format**
