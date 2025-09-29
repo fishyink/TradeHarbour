@@ -5,17 +5,6 @@
 
 ### <span style="color: red; font-weight: bold;">🚨 IMPORTANT: This application ONLY runs in Electron - NOT in web browsers! 🚨</span>
 
-<div style="background-color: #ffebee; border: 2px solid #f44336; padding: 15px; border-radius: 5px;">
-<strong style="color: #d32f2f; font-size: 1.2em;">⛔ DOES NOT WORK IN:</strong><br>
-❌ Chrome, Firefox, Safari, Edge, or ANY web browser<br>
-❌ Mobile devices (iPhone, Android)<br>
-❌ Web hosting or online deployment<br>
-<br>
-<strong style="color: #2e7d32; font-size: 1.2em;">✅ WORKS AS:</strong><br>
-✅ Desktop Electron application (like Discord, Slack, VS Code)<br>
-✅ Downloadable software that runs on your computer<br>
-✅ Native desktop app with window controls and system integration<br>
-</div>
 
 A modern, open-source **Electron desktop application** for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
 
@@ -37,11 +26,6 @@ Trade Harbour brings all your cryptocurrency trading accounts into one secure **
 - **macOS** - Build from source only (requires Node.js)
 - **Linux** - Build from source only (requires Node.js)
 
-#### ❌ NOT Supported
-- **Web browsers** (Chrome, Firefox, Safari, Edge, etc.)
-- **Mobile devices** (iOS, Android)
-- **Web hosting** (cannot deploy as website)
-- **Browser extensions** (this is a desktop app, not a web app)
 
 #### 🔧 Requirements
 - **Desktop environment only** - runs as Electron application
