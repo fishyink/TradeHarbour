@@ -44,40 +44,15 @@ jobs:
 
     - name: Create Release and Upload Assets
       if: startsWith(github.ref, 'refs/tags/')
-      shell: pwsh
       run: |
-        $tagName = "${{ github.ref_name }}"
+        echo "Creating release ${{ github.ref_name }}"
+        gh release create ${{ github.ref_name }} --title "Trade Harbour ${{ github.ref_name }}" --notes "Trade Harbour release ${{ github.ref_name }} - Download and run the .exe file directly!" || echo "Release might already exist"
 
-        # Create release using GitHub CLI (or use existing if it exists)
-        try {
-          gh release create $tagName --title "Trade Harbour $tagName" --notes "Trade Harbour release $tagName - Download and run the .exe file directly!"
-          Write-Host "Release created successfully"
-        } catch {
-          Write-Host "Release already exists or creation failed, continuing with upload..."
-        }
+        echo "Looking for exe files to upload..."
+        find release -name "*.exe" -type f
 
-        # Wait a moment for release to be ready
-        Start-Sleep -Seconds 2
-
-        # Upload only the main distribution files (not helper files)
-        Get-ChildItem release -Filter "*Setup*.exe" -Recurse | ForEach-Object {
-          Write-Host "Uploading installer: $($_.FullName)"
-          try {
-            gh release upload $tagName $_.FullName --clobber
-            Write-Host "Successfully uploaded: $($_.Name)"
-          } catch {
-            Write-Host "Failed to upload: $($_.Name) - $_"
-          }
-        }
-
-        Get-ChildItem release -Filter "*portable*.exe" -Recurse | ForEach-Object {
-          Write-Host "Uploading portable: $($_.FullName)"
-          try {
-            gh release upload $tagName $_.FullName --clobber
-            Write-Host "Successfully uploaded: $($_.Name)"
-          } catch {
-            Write-Host "Failed to upload: $($_.Name) - $_"
-          }
-        }
+        echo "Uploading all exe files..."
+        find release -name "*Setup*.exe" -type f -exec gh release upload ${{ github.ref_name }} {} --clobber \;
+        find release -name "*portable*.exe" -type f -exec gh release upload ${{ github.ref_name }} {} --clobber \;
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
