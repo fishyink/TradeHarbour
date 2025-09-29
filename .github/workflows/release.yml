@@ -1,118 +1,66 @@
-name: Build and Release Windows Executable
+name: Build Windows Executable
 
-# Trigger the workflow when a version tag is pushed or manually triggered
 on:
   push:
     tags:
-      - 'v*.*.*'  # Matches tags like v1.0.0, v1.2.3, etc.
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+      - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
-  build-and-release:
-    # Use Windows runner for building Windows executables
+  build:
     runs-on: windows-latest
 
     steps:
-    # Step 1: Check out the repository code
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    # Step 2: Set up Node.js environment
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
 
-    # Step 3: Install all project dependencies
     - name: Install dependencies
       run: npm install
 
-    # Step 4: Build the application (main + renderer)
     - name: Build application
       run: |
         npm run build:main
         npm run build:renderer
 
-    # Step 5: Create Windows executables using electron-builder
     - name: Build Windows executables
       run: npx electron-builder --win --publish never
       env:
-        # Required for electron-builder to work properly
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Step 6: Debug - List all generated files
-    - name: List generated files for debugging
-      shell: powershell
-      run: |
-        Write-Host "=== Contents of root directory ==="
-        Get-ChildItem -Name
-        Write-Host "`n=== Contents of release directory ==="
-        if (Test-Path "release") {
-          Get-ChildItem "release" -Recurse | ForEach-Object { Write-Host $_.FullName }
-        } else {
-          Write-Host "Release directory does not exist"
-        }
-        Write-Host "`n=== Looking for .exe files everywhere ==="
-        Get-ChildItem -Path . -Filter "*.exe" -Recurse | ForEach-Object { Write-Host $_.FullName }
-
-    # Step 7: Upload executables as workflow artifacts (backup)
-    - name: Upload artifacts
+    - name: Upload executables as artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: windows-executables
+        name: TradeHarbour-Windows-${{ github.ref_name }}
         path: release/*.exe
-        if-no-files-found: warn
+        retention-days: 90
 
-    # Step 8: Create GitHub release and upload executables
-    - name: Create GitHub Release
+    - name: Create Release (Simple)
       if: startsWith(github.ref, 'refs/tags/')
-      shell: powershell
-      run: |
-        $tagName = "${{ github.ref_name }}"
-        $releaseTitle = "Trade Harbour $tagName"
-        $releaseNotes = @"
-        # Trade Harbour $tagName
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release/*.exe
+        name: Trade Harbour ${{ github.ref_name }}
+        body: |
+          # Trade Harbour ${{ github.ref_name }}
 
-        ## Download and Install
-        - **Windows Installer**: Download ``Trade Harbour Setup $tagName.exe`` for full installation with shortcuts
-        - **Portable Version**: Download ``TradeHarbour-$tagName-portable.exe`` to run without installation
+          ## Downloads
+          - **Trade Harbour Setup.exe** - Full installer with shortcuts
+          - **TradeHarbour-portable.exe** - Portable version, no installation required
 
-        ## Requirements
-        - Windows 10/11 (64-bit)
-        - No additional software required
+          ## Requirements
+          - Windows 10/11 (64-bit)
 
-        ## Usage
-        1. Download the .exe file
-        2. Run the executable
-        3. Follow the setup instructions in the app
-
-        Built automatically from commit ${{ github.sha }}
-        "@
-
-        # Create the release
-        Write-Host "Creating release: $releaseTitle"
-        gh release create $tagName --title $releaseTitle --notes $releaseNotes
-
-        # Find and upload all .exe files
-        Write-Host "Looking for executable files to upload..."
-        $exeFiles = Get-ChildItem -Path "release" -Filter "*.exe" -Recurse
-
-        if ($exeFiles.Count -eq 0) {
-          Write-Host "ERROR: No .exe files found in release directory!"
-          exit 1
-        }
-
-        foreach ($file in $exeFiles) {
-          Write-Host "Uploading: $($file.Name)"
-          gh release upload $tagName $file.FullName --clobber
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Failed to upload $($file.Name)"
-          } else {
-            Write-Host "Successfully uploaded: $($file.Name)"
-          }
-        }
-
-        Write-Host "Release creation completed!"
+          ## Usage
+          1. Download the .exe file you prefer
+          2. Run it directly
+          3. No additional software needed!
+        draft: false
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
