@@ -1,10 +1,15 @@
 # ⚓ Trade Harbour
 **One harbour, one dashboard, all your trades.**
 
-A modern, open-source **desktop application** for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
+## 🖥️ **DESKTOP APPLICATION ONLY - NOT BROWSER COMPATIBLE**
 
-> **⚠️ IMPORTANT: This is a desktop application only**
-> Trade Harbour is built with Electron and **will NOT run in web browsers**. You must download and install the desktop application to use it.
+> **🚨 CRITICAL NOTICE 🚨**
+> **Trade Harbour is an ELECTRON DESKTOP APP and CANNOT run in web browsers**
+> ❌ Does NOT work in Chrome, Firefox, Safari, or any web browser
+> ✅ Must be downloaded and run as a desktop application
+> ✅ Available for Windows (Mac support via building from source)
+
+A modern, open-source **desktop application** for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
 
 ![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.3.2-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -18,9 +23,21 @@ A modern, open-source **desktop application** for monitoring multiple cryptocurr
 Trade Harbour brings all your cryptocurrency trading accounts into one secure **desktop dashboard**. Monitor multiple exchanges, track performance, and analyze your trading data - all from a single interface.
 
 ### 🖥️ Platform Requirements
-- **Windows 10/11 (64-bit)** - Version 1903 or later recommended
-- **Microsoft Visual C++ Redistributable** - Usually pre-installed
-- **Desktop Application**: NOT supported in web browsers or mobile
+
+#### ✅ Supported Platforms
+- **Windows 10/11 (64-bit)** - Download ZIP release (recommended)
+- **macOS** - Build from source only (requires Node.js)
+- **Linux** - Build from source only (requires Node.js)
+
+#### ❌ NOT Supported
+- **Web browsers** (Chrome, Firefox, Safari, Edge, etc.)
+- **Mobile devices** (iOS, Android)
+- **Web hosting** (cannot deploy as website)
+- **Browser extensions** (this is a desktop app, not a web app)
+
+#### 🔧 Requirements
+- **Desktop environment only** - runs as Electron application
+- **Microsoft Visual C++ Redistributable** (Windows, usually pre-installed)
 - **Data Storage**: All data stays local and portable with the app
 
 ## ❓ Troubleshooting
@@ -74,12 +91,27 @@ This opens developer tools to see any error messages.
 
 ## 🚀 Quick Start
 
-### Option 1: Download Release (Recommended)
+### 🪟 Windows Users (Recommended)
 1. **Download the latest release** from the [Releases](https://github.com/fishyink/tradeharbour/releases) page
-2. **Extract and run** the executable file
-3. **No installation required** - it's a portable application
+2. **Extract the ZIP file** to any folder
+3. **Run TradeHarbour.exe** from the extracted folder
+4. **No installation required** - it's a portable Electron application
 
-### Option 2: Build from Source
+### 🍎 Mac Users (Build from Source Required)
+> **Mac users must build from source** - no pre-built releases available yet
+
+```bash
+# Install prerequisites
+brew install node git
+
+# Build and run Trade Harbour
+git clone https://github.com/fishyink/TradeHarbour.git
+cd TradeHarbour
+npm install
+npm run dev  # Opens in Electron window
+```
+
+### 🛠️ Advanced: Build from Source (All Platforms)
 > **Note**: This requires technical knowledge and is only for developers
 
 #### Prerequisites
