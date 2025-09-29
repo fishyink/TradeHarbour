@@ -1,6 +1,6 @@
 {
   "name": "trade-harbour",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Trade Harbour - One harbour, one dashboard, all your trades. A unified trading command center for cryptocurrency exchanges.",
   "main": "dist/main.js",
   "homepage": "https://github.com/fishyink/TradeHarbour",
@@ -78,7 +78,7 @@
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "zip",
           "arch": ["x64"]
         }
       ],
@@ -91,8 +91,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
-    "portable": {
-      "artifactName": "TradeHarbour-${version}-portable.exe"
+    "zip": {
+      "artifactName": "TradeHarbour-${version}-portable.zip"
     }
   }
 }

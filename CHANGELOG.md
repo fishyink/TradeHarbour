@@ -1,5 +1,22 @@
 # Bybit Dashboard Changelog
 
+## Version 1.5.1 - September 29, 2025
+
+### 📦 **ZIP Release Format**
+- **Complete Package Distribution**: Changed from standalone .exe to .zip format
+  - ZIP contains TradeHarbour.exe + data folder + troubleshooting batch files
+  - Users can immediately see data folder structure for easy upgrades
+  - Includes install-dependencies.bat and fix-white-screen.bat for self-service support
+  - No more hidden data - everything visible for user control
+
+### 🔄 **Enhanced User Experience**
+- **Simplified Upgrade Process**: Copy/paste data folder between versions
+- **Transparent Data Location**: Data folder visible in download package
+- **Complete Self-Service**: All troubleshooting tools included in ZIP
+- **Professional Distribution**: Clean, organized package structure
+
+---
+
 ## Version 1.5.0 - September 29, 2025
 
 ### 🔧 **Enhanced Production Stability & Error Handling**
