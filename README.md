@@ -1,15 +1,23 @@
 # ⚓ Trade Harbour
 **One harbour, one dashboard, all your trades.**
 
-## 🖥️ **DESKTOP APPLICATION ONLY - NOT BROWSER COMPATIBLE**
+## <span style="color: red; font-weight: bold; font-size: 1.5em;">⚠️ ELECTRON DESKTOP APP ONLY - NO BROWSER SUPPORT ⚠️</span>
 
-> **🚨 CRITICAL NOTICE 🚨**
-> **Trade Harbour is an ELECTRON DESKTOP APP and CANNOT run in web browsers**
-> ❌ Does NOT work in Chrome, Firefox, Safari, or any web browser
-> ✅ Must be downloaded and run as a desktop application
-> ✅ Available for Windows (Mac support via building from source)
+### <span style="color: red; font-weight: bold;">🚨 IMPORTANT: This application ONLY runs in Electron - NOT in web browsers! 🚨</span>
 
-A modern, open-source **desktop application** for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
+<div style="background-color: #ffebee; border: 2px solid #f44336; padding: 15px; border-radius: 5px;">
+<strong style="color: #d32f2f; font-size: 1.2em;">⛔ DOES NOT WORK IN:</strong><br>
+❌ Chrome, Firefox, Safari, Edge, or ANY web browser<br>
+❌ Mobile devices (iPhone, Android)<br>
+❌ Web hosting or online deployment<br>
+<br>
+<strong style="color: #2e7d32; font-size: 1.2em;">✅ WORKS AS:</strong><br>
+✅ Desktop Electron application (like Discord, Slack, VS Code)<br>
+✅ Downloadable software that runs on your computer<br>
+✅ Native desktop app with window controls and system integration<br>
+</div>
+
+A modern, open-source **Electron desktop application** for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
 
 ![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.3.2-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -89,27 +97,60 @@ This opens developer tools to see any error messages.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 How to Install & Run
 
-### 🪟 Windows Users (Recommended)
-1. **Download the latest release** from the [Releases](https://github.com/fishyink/tradeharbour/releases) page
-2. **Extract the ZIP file** to any folder
-3. **Run TradeHarbour.exe** from the extracted folder
-4. **No installation required** - it's a portable Electron application
+### 🪟 **Windows Users - Easy Download** (Recommended)
 
-### 🍎 Mac Users (Build from Source Required)
-> **Mac users must build from source** - no pre-built releases available yet
+<div style="background-color: #e8f5e8; border: 2px solid #4caf50; padding: 15px; border-radius: 5px; margin: 10px 0;">
+<strong style="color: #2e7d32;">✅ Windows: Download Ready-to-Use ZIP Package</strong><br><br>
 
+**Step 1:** Visit the [Releases](https://github.com/fishyink/tradeharbour/releases) page<br>
+**Step 2:** Download **TradeHarbour-X.X.X-portable.zip**<br>
+**Step 3:** Extract ZIP to any folder (Desktop, Documents, USB drive, etc.)<br>
+**Step 4:** Double-click **TradeHarbour.exe** from extracted folder<br>
+**Step 5:** Application opens in Electron window - start trading!<br><br>
+
+**📁 What's in the ZIP:**<br>
+✅ TradeHarbour.exe (main application)<br>
+✅ data/ folder (your settings and trade data)<br>
+✅ install-dependencies.bat (fixes white screen issues)<br>
+✅ fix-white-screen.bat (quick troubleshooting)<br><br>
+
+**💾 No installation needed** - it's 100% portable!
+</div>
+
+### 🍎 **Mac Users - Build from Source** (Technical Setup Required)
+
+<div style="background-color: #fff3e0; border: 2px solid #ff9800; padding: 15px; border-radius: 5px; margin: 10px 0;">
+<strong style="color: #e65100;">⚠️ Mac: No Pre-Built Downloads - Must Build Locally</strong><br><br>
+
+**Prerequisites:** Terminal knowledge required<br><br>
+
+**Step 1: Install Development Tools**
 ```bash
-# Install prerequisites
-brew install node git
+# Install Homebrew (package manager)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Build and run Trade Harbour
+# Install Node.js and Git
+brew install node git
+```
+
+**Step 2: Build Trade Harbour**
+```bash
+# Clone the repository
 git clone https://github.com/fishyink/TradeHarbour.git
 cd TradeHarbour
+
+# Install dependencies and build
 npm install
-npm run dev  # Opens in Electron window
+
+# Run Trade Harbour (opens in Electron window)
+npm run dev
 ```
+
+**✅ Result:** Trade Harbour opens as native Mac desktop app<br>
+**📁 Data Location:** Creates local `data/` folder for your settings
+</div>
 
 ### 🛠️ Advanced: Build from Source (All Platforms)
 > **Note**: This requires technical knowledge and is only for developers
