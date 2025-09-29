@@ -1,0 +1,24 @@
+TRADE HARBOUR DATA FOLDER
+
+🔄 HOW TO UPGRADE TO NEW VERSION:
+
+1. Download the new TradeHarbour-portable.exe
+2. Copy this ENTIRE "data" folder
+3. Place it next to the new .exe file
+4. Run the new version - your data will be preserved!
+
+📁 WHAT'S IN THIS FOLDER:
+- Account settings and API keys (encrypted)
+- Trading history and statistics
+- Application preferences
+- All your personal data
+
+💾 BACKUP TIP:
+Copy this folder to a safe location as backup
+before upgrading or making changes.
+
+🆕 FRESH INSTALL:
+If this is a new installation, this folder will be
+populated with your data as you use the application.
+
+For support: https://github.com/fishyink/TradeHarbour

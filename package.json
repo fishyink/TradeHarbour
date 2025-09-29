@@ -64,8 +64,7 @@
     "extraResources": [
       {
         "from": "data",
-        "to": "data",
-        "filter": ["**/*", "!*.json", "!*.db", "!*.sqlite"]
+        "to": "data"
       },
       {
         "from": "install-dependencies.bat",
