@@ -34,13 +34,19 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: List generated files
+      run: |
+        echo "Contents of release directory:"
+        dir release /s
+        echo "Looking for exe files:"
+        dir release\*.exe /s 2>nul || echo "No exe files found in release\"
+
     - name: Upload Release Assets
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          release/*.exe
-          release/*.msi
+          release/**/*.exe
         draft: false
         prerelease: false
       env:
