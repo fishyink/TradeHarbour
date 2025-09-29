@@ -97,7 +97,6 @@
         }
       ],
       "category": "public.app-category.finance",
-      "icon": "assets/icon.icns",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "artifactName": "TradeHarbour-${version}-mac.dmg"
@@ -110,13 +109,10 @@
         }
       ],
       "category": "Office",
-      "icon": "assets/icon.png",
       "artifactName": "TradeHarbour-${version}-linux.AppImage"
     },
     "dmg": {
       "title": "Trade Harbour ${version}",
-      "icon": "assets/icon.icns",
-      "background": "assets/dmg-background.png",
       "contents": [
         {
           "x": 410,
