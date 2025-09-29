@@ -8,6 +8,7 @@ const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
 const store = new Store({
   name: 'bybit-dashboard-config',
   encryptionKey: 'bybit-dashboard-secure-key-2024',
+  cwd: path.join(__dirname, '../data'), // Store data in local 'data' folder
 })
 
 let mainWindow: BrowserWindow | null = null
@@ -48,8 +49,8 @@ async function createWindow(): Promise<void> {
       }
     }
 
-    // Try ports in order: 8080, 8081, 8082, 8083, 8084
-    const ports = [8080, 8081, 8082, 8083, 8084]
+    // Try ports in order: 8081, 8080, 5173, 8082, 8083, 8084
+    const ports = [8081, 8080, 5173, 8082, 8083, 8084]
     let connected = false
 
     for (const port of ports) {
