@@ -1,6 +1,37 @@
 # Bybit Dashboard Changelog
 
-## Version 1.4.9 - September 29, 2025
+## Version 1.5.0 - September 29, 2025
+
+### 🔧 **Enhanced Production Stability & Error Handling**
+- **Robust File Loading**: Multiple fallback paths for finding application files
+  - Improved error detection and recovery for missing or corrupted files
+  - Better logging and diagnostics for file loading issues
+  - Enhanced compatibility across different Windows configurations
+
+- **Intelligent Error Messages**: Replaced generic white screens with helpful guidance
+  - Specific error pages explaining what went wrong and how to fix it
+  - Direct references to included troubleshooting tools (fix-white-screen.bat)
+  - Clear escalation path for unresolved issues
+
+### 🛡️ **Production Loading Improvements**
+- **Network-Independent**: Confirmed production mode uses no network ports
+  - File-based loading eliminates port conflict possibilities
+  - More reliable loading across corporate and restricted networks
+  - Better performance and startup times
+
+- **Enhanced Debugging**: Better console logging for troubleshooting
+  - Clear success/failure indicators for each loading attempt
+  - Detailed path information for support teams
+  - Easier identification of antivirus or permission issues
+
+### 📦 **User Experience**
+- **No More Mystery Errors**: Users always know what's wrong and how to fix it
+- **Self-Service Support**: Enhanced batch files with common cause explanations
+- **Professional Error Handling**: Clear, actionable error messages instead of blank screens
+
+---
+
+## Version 1.4.9 - September 29, 2025 (Previous)
 
 ### 🛠️ **Comprehensive User Support & Troubleshooting**
 - **Automated Dependency Installer**: Added `install-dependencies.bat` for one-click setup

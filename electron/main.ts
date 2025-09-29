@@ -351,7 +351,7 @@ ipcMain.handle('import-user-data', async (_, filePath: string) => {
 
 
 ipcMain.handle('get-app-version', () => {
-  return '1.4.9' // Our app version, not Electron version
+  return '1.5.0' // Our app version, not Electron version
 })
 
 autoUpdater.on('update-available', () => {
