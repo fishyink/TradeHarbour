@@ -1,4 +1,4 @@
-export type ExchangeType = 'bybit' | 'toobit' | 'blofin'
+export type ExchangeType = 'bybit'
 
 // Common interface that all exchanges must implement
 export interface ExchangeAccount {
@@ -9,10 +9,6 @@ export interface ExchangeAccount {
   apiSecret: string
   isTestnet: boolean
   createdAt: number
-  // Toobit specific fields
-  passphrase?: string // Required for Toobit
-  // Blofin specific fields
-  accessPassphrase?: string // Required for BloFin
 }
 
 // Unified data structures

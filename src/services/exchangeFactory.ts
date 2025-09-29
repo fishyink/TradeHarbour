@@ -1,7 +1,5 @@
 import { ExchangeAccount, ExchangeType, ExchangeAPI, UnifiedAccountData } from '../types/exchanges'
 import { bybitAPI } from './bybit'
-import { toobitAPI } from './toobit'
-import { blofinAPI } from './blofin'
 import { convertToBybitAccount } from './configManager'
 
 class ExchangeFactory {
@@ -9,10 +7,6 @@ class ExchangeFactory {
     switch (exchange) {
       case 'bybit':
         return bybitAPI
-      case 'toobit':
-        return toobitAPI
-      case 'blofin':
-        return blofinAPI
       default:
         throw new Error(`Unsupported exchange: ${exchange}`)
     }
@@ -97,17 +91,13 @@ class ExchangeFactory {
   }
 
   getSupportedExchanges(): ExchangeType[] {
-    return ['bybit', 'toobit', 'blofin']
+    return ['bybit']
   }
 
   getExchangeDisplayName(exchange: ExchangeType): string {
     switch (exchange) {
       case 'bybit':
         return 'Bybit'
-      case 'toobit':
-        return 'Toobit'
-      case 'blofin':
-        return 'BloFin'
       default:
         return exchange
     }
@@ -124,20 +114,8 @@ class ExchangeFactory {
       errors.push('API Secret is required')
     }
 
-    // Exchange-specific validation
-    switch (account.exchange) {
-      case 'blofin':
-        if (!account.accessPassphrase || account.accessPassphrase.trim().length === 0) {
-          errors.push('Access Passphrase is required for BloFin')
-        }
-        break
-      case 'toobit':
-        // Toobit might have specific requirements
-        break
-      case 'bybit':
-        // Bybit validation (current implementation)
-        break
-    }
+    // Exchange-specific validation - currently only Bybit is supported
+    // No additional validation needed for Bybit
 
     return {
       valid: errors.length === 0,

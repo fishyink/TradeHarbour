@@ -14,7 +14,6 @@ export const AccountManager = () => {
     exchange: 'bybit' as ExchangeType,
     apiKey: '',
     apiSecret: '',
-    accessPassphrase: '', // For BloFin
     isTestnet: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -36,7 +35,6 @@ export const AccountManager = () => {
       exchange: formData.exchange,
       apiKey: formData.apiKey,
       apiSecret: formData.apiSecret,
-      accessPassphrase: formData.accessPassphrase,
       isTestnet: formData.isTestnet,
       createdAt: Date.now()
     })
@@ -49,7 +47,7 @@ export const AccountManager = () => {
     setIsSubmitting(true)
     try {
       await addAccount(formData)
-      setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', accessPassphrase: '', isTestnet: false })
+      setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', isTestnet: false })
       setShowAddForm(false)
       setSubmitError(null)
     } catch (error) {
@@ -73,7 +71,6 @@ export const AccountManager = () => {
       exchange: account.exchange || 'bybit',
       apiKey: account.apiKey,
       apiSecret: account.apiSecret,
-      accessPassphrase: account.accessPassphrase || '',
       isTestnet: account.isTestnet,
     })
     setShowEditForm(true)
@@ -91,7 +88,6 @@ export const AccountManager = () => {
       exchange: formData.exchange,
       apiKey: formData.apiKey,
       apiSecret: formData.apiSecret,
-      accessPassphrase: formData.accessPassphrase,
       isTestnet: formData.isTestnet,
       createdAt: Date.now()
     })
@@ -108,7 +104,7 @@ export const AccountManager = () => {
         await removeAccount(editingAccount)
         await addAccount(formData)
       }
-      setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', accessPassphrase: '', isTestnet: false })
+      setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', isTestnet: false })
       setShowEditForm(false)
       setEditingAccount(null)
       setSubmitError(null)
@@ -166,7 +162,7 @@ export const AccountManager = () => {
               No accounts configured
             </h3>
             <p className="text-muted mb-6">
-              Add your first Bybit account to start monitoring your trades and balances.
+              Add your first account to start monitoring your trades and balances.
             </p>
             <button
               onClick={() => setShowAddForm(true)}
@@ -217,8 +213,6 @@ export const AccountManager = () => {
                       <span>API Key: {maskApiKey(account.apiKey)}</span>
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         account.exchange === 'bybit' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
-                        account.exchange === 'toobit' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
-                        account.exchange === 'blofin' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' :
                         'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300'
                       }`}>
                         {exchangeFactory.getExchangeDisplayName(account.exchange || 'bybit')}
@@ -330,21 +324,6 @@ export const AccountManager = () => {
                 />
               </div>
 
-              {formData.exchange === 'blofin' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Access Passphrase
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.accessPassphrase}
-                    onChange={(e) => setFormData({ ...formData, accessPassphrase: e.target.value })}
-                    className="input"
-                    placeholder="Your BloFin Access Passphrase"
-                    required
-                  />
-                </div>
-              )}
 
               <div className="flex items-center">
                 <input
@@ -372,7 +351,7 @@ export const AccountManager = () => {
                   onClick={() => {
                     setShowAddForm(false)
                     setSubmitError(null)
-                    setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', accessPassphrase: '', isTestnet: false })
+                    setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', isTestnet: false })
                   }}
                   className="btn-secondary flex-1"
                   disabled={isSubmitting}
@@ -460,21 +439,6 @@ export const AccountManager = () => {
                 />
               </div>
 
-              {formData.exchange === 'blofin' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Access Passphrase
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.accessPassphrase}
-                    onChange={(e) => setFormData({ ...formData, accessPassphrase: e.target.value })}
-                    className="input"
-                    placeholder="Your BloFin Access Passphrase"
-                    required
-                  />
-                </div>
-              )}
 
               <div className="flex items-center">
                 <input
@@ -503,7 +467,7 @@ export const AccountManager = () => {
                     setShowEditForm(false)
                     setEditingAccount(null)
                     setSubmitError(null)
-                    setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', accessPassphrase: '', isTestnet: false })
+                    setFormData({ name: '', exchange: 'bybit', apiKey: '', apiSecret: '', isTestnet: false })
                   }}
                   className="btn-secondary flex-1"
                   disabled={isSubmitting}
