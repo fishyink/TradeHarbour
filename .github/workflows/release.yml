@@ -35,12 +35,12 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: List generated files
+      shell: pwsh
       run: |
-        echo "Contents of release directory:"
-        dir release
-        echo "Looking for exe files:"
-        dir release\*.exe 2>nul || echo "No exe files found in release directory"
-        if exist release (dir release\*.exe)
+        Write-Host "Contents of release directory:"
+        if (Test-Path "release") { Get-ChildItem release } else { Write-Host "Release directory does not exist" }
+        Write-Host "Looking for exe files:"
+        Get-ChildItem release -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue
 
     - name: Upload Release Assets
       uses: softprops/action-gh-release@v1
