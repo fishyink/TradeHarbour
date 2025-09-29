@@ -1,6 +1,6 @@
 {
   "name": "trade-harbour",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "Trade Harbour - One harbour, one dashboard, all your trades. A unified trading command center for cryptocurrency exchanges.",
   "main": "dist/main.js",
   "homepage": "https://github.com/fishyink/TradeHarbour",
@@ -72,16 +72,18 @@
     ],
     "extraResources": [
       {
-        "from": "data",
-        "to": "data"
-      },
-      {
         "from": "install-dependencies.bat",
         "to": "install-dependencies.bat"
       },
       {
         "from": "fix-white-screen.bat",
         "to": "fix-white-screen.bat"
+      }
+    ],
+    "extraFiles": [
+      {
+        "from": "data",
+        "to": "data"
       }
     ],
     "win": {
@@ -126,20 +128,26 @@
       "internetEnabled": false,
       "sign": false,
       "window": {
-        "width": 540,
+        "width": 680,
         "height": 380
       },
       "contents": [
         {
-          "x": 410,
+          "x": 150,
+          "y": 190,
+          "type": "file"
+        },
+        {
+          "x": 350,
+          "y": 190,
+          "type": "dir",
+          "path": "data"
+        },
+        {
+          "x": 550,
           "y": 190,
           "type": "link",
           "path": "/Applications"
-        },
-        {
-          "x": 130,
-          "y": 190,
-          "type": "file"
         }
       ]
     }
