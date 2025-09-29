@@ -5,8 +5,8 @@ import Store from 'electron-store'
 let autoUpdater: any = null
 try {
   autoUpdater = require('electron-updater').autoUpdater
-} catch (error) {
-  console.warn('electron-updater not available:', error.message)
+} catch (error: any) {
+  console.warn('electron-updater not available:', error?.message || 'Unknown error')
 }
 import * as path from 'path'
 import * as fs from 'fs'
