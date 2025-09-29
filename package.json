@@ -61,8 +61,12 @@
       "dist/**/*",
       "data/.gitkeep",
       "data/README.md",
-      "assets/**/*",
-      "package.json"
+      "package.json",
+      "!dist/**/*.map",
+      "!node_modules",
+      "!src",
+      "!.git",
+      "!*.md"
     ],
     "extraResources": [
       {
@@ -99,7 +103,9 @@
       "category": "public.app-category.finance",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "artifactName": "TradeHarbour-${version}-mac.dmg"
+      "artifactName": "TradeHarbour-${version}-mac.dmg",
+      "compression": "maximum",
+      "type": "distribution"
     },
     "linux": {
       "target": [
@@ -113,16 +119,21 @@
     },
     "dmg": {
       "title": "Trade Harbour ${version}",
+      "format": "ULFO",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
       "contents": [
         {
           "x": 410,
-          "y": 150,
+          "y": 190,
           "type": "link",
           "path": "/Applications"
         },
         {
           "x": 130,
-          "y": 150,
+          "y": 190,
           "type": "file"
         }
       ]
