@@ -66,8 +66,8 @@ async function createWindow(): Promise<void> {
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
 
-    // Open dev tools only in development
-    if (isDev) {
+    // Open dev tools in development OR if ELECTRON_DEBUG is set
+    if (isDev || process.env.ELECTRON_DEBUG) {
       mainWindow?.webContents.openDevTools()
     }
   })
@@ -100,9 +100,25 @@ async function createWindow(): Promise<void> {
       mainWindow.loadURL('data:text/html,<h1>Vite dev server not found</h1>')
     }
   } else {
-    // Load file directly - much simpler and more reliable
+    // Production mode - load the built HTML file
     const htmlPath = path.join(__dirname, 'renderer', 'index.html')
-    mainWindow.loadFile(htmlPath)
+    console.log('Loading HTML from:', htmlPath)
+
+    // Check if file exists
+    if (fs.existsSync(htmlPath)) {
+      mainWindow.loadFile(htmlPath)
+    } else {
+      console.error('HTML file not found at:', htmlPath)
+      // Try alternative path
+      const altPath = path.join(__dirname, '../dist/renderer/index.html')
+      console.log('Trying alternative path:', altPath)
+      if (fs.existsSync(altPath)) {
+        mainWindow.loadFile(altPath)
+      } else {
+        console.error('Alternative HTML file not found at:', altPath)
+        mainWindow.loadURL('data:text/html,<h1>Error: Could not load application files</h1>')
+      }
+    }
   }
 
   mainWindow.on('closed', () => {

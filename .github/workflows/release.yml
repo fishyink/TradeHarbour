@@ -55,8 +55,7 @@ jobs:
           This is a **100% portable application** - no installation required!
 
           ## Downloads
-          - **Trade Harbour Setup.exe** - Traditional installer (creates shortcuts)
-          - **TradeHarbour-portable.exe** - Portable version (recommended)
+          - **TradeHarbour-portable.exe** - 100% Portable Application (no installation required)
 
           ## ✨ Features
           - **True Portability**: Data stored in `data/` folder next to .exe
