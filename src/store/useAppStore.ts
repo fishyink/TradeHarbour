@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { BybitAccount, AppSettings, storageService } from '../services/storage'
+import { BybitAccount, AppSettings, storageService } from '../services/configManager'
 import { AccountData } from '../types/bybit'
 import { ExchangeAccount, UnifiedAccountData } from '../types/exchanges'
 import { bybitAPI } from '../services/bybit'
@@ -111,17 +111,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
 
-      const [accounts, settings, equityHistory] = await Promise.all([
+      const [accounts, settings] = await Promise.all([
         storageService.getExchangeAccounts(),
         storageService.getSettings(),
-        storageService.getEquityHistory(),
       ])
+
+      // Load equity history for all accounts (new partitioned approach)
+      let combinedEquityHistory: EquitySnapshot[] = []
+      if (accounts.length > 0) {
+        // For now, just initialize empty - equity will be populated as accounts are used
+        combinedEquityHistory = []
+      }
 
       // Load custom cards from localStorage for now (TODO: integrate with storageService)
       const savedCards = localStorage.getItem('customCards')
       const customCards = savedCards ? JSON.parse(savedCards) : []
 
-      set({ accounts, settings, equityHistory: equityHistory || [], customCards })
+      set({ accounts, settings, equityHistory: combinedEquityHistory, customCards })
 
       if (accounts.length > 0) {
         // Pre-populate historical cache for Bybit accounts only (other exchanges don't have historical cache yet)
@@ -240,27 +246,28 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set({ equityHistory: updatedHistory })
 
-    // Save to storage
-    storageService.saveEquityHistory(updatedHistory).catch(console.error)
+    // Save individual snapshots to each account's partitioned storage
+    accountsData.forEach(account => {
+      if (account.balance) {
+        storageService.addEquitySnapshot(account.id, snapshot).catch(console.error)
+      }
+    })
   },
 
 
   clearEquityHistory: () => {
     console.log('Clearing equity history and forcing regeneration')
     set({ equityHistory: [] })
-    // Clear the performance cache as well
-    // cachedHistoricalData = null
-    // cacheKey = null
-    storageService.saveEquityHistory([]).catch(console.error)
+    // Note: With partitioned storage, equity data is stored per-account
+    // This just clears the in-memory combined view
   },
 
   // Force clear equity history - temporary function for debugging
   forceClearEquityHistory: () => {
     console.log('🧹 FORCE clearing equity history')
     set({ equityHistory: [] })
-    // cachedHistoricalData = null
-    // cacheKey = null
-    storageService.saveEquityHistory([]).catch(console.error)
+    // Note: With partitioned storage, individual account data remains intact
+    // This just clears the in-memory combined view
   },
 
   // Backfill equity history using historical P&L data
@@ -402,9 +409,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       console.log(`📊 Generated ${mergedSnapshots.length} merged equity snapshots`)
 
-      // Save to store and storage
+      // Save to store and partitioned storage per account
       set({ equityHistory: mergedSnapshots })
-      await storageService.saveEquityHistory(mergedSnapshots)
+
+      // Save individual account equity histories to partitioned storage
+      for (const [accountId, snapshots] of Object.entries(accountEquityHistory)) {
+        await storageService.saveEquityHistoryForAccount(accountId, snapshots)
+      }
 
       console.log('✅ Equity history backfill completed!')
 

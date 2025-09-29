@@ -1,6 +1,5 @@
-import { dataManager } from './dataManager'
-import { dataMigration } from './dataMigration'
-import { BybitAccount } from './configManager'
+import crypto from 'crypto-js'
+import { BybitAccount } from './storage'
 import { BybitClosedPnL, BybitTrade } from '../types/bybit'
 
 interface HistoricalDataCache {
@@ -26,6 +25,8 @@ interface HistoricalFetchProgress {
 }
 
 export class HistoricalDataService {
+  private readonly STORAGE_KEY = 'bybit_historical_cache'
+  private readonly ENCRYPTION_KEY = 'bybit_dashboard_encryption_key_v1'
   private readonly INITIAL_DAYS_HISTORY = 180 // Initial 6 months fetch
   private readonly CHUNK_SIZE_DAYS = 7
   private readonly CACHE_EXPIRY_HOURS = 24 // Increased to 24 hours for development stability
@@ -33,82 +34,31 @@ export class HistoricalDataService {
 
   private progressCallbacks: Set<(progress: HistoricalFetchProgress) => void> = new Set()
 
-  constructor() {
-    // Run migration check on startup
-    this.checkAndRunMigration()
-  }
-
-  // Check and run migration if needed
-  private async checkAndRunMigration(): Promise<void> {
+  // Encrypt and store cache data
+  private async encryptAndStore(data: Record<string, HistoricalDataCache>): Promise<void> {
     try {
-      const migrationStatus = await dataMigration.getMigrationStatus()
-
-      if (migrationStatus.needsMigration) {
-        console.log('🔄 Legacy data detected, performing automatic migration...')
-        const result = await dataMigration.performFullMigration()
-
-        if (result.success) {
-          console.log('✅ Migration completed successfully:', result.results)
-        } else {
-          console.error('❌ Migration failed:', result.error)
-        }
-      }
+      const jsonStr = JSON.stringify(data)
+      const encrypted = crypto.AES.encrypt(jsonStr, this.ENCRYPTION_KEY).toString()
+      await window.electronAPI.store.set(this.STORAGE_KEY, encrypted)
     } catch (error) {
-      console.error('Migration check failed:', error)
+      console.warn('Failed to encrypt and store historical cache:', error)
     }
   }
 
-  // Get month key from timestamp
-  private getMonthKey(timestamp: number): string {
-    const date = new Date(timestamp)
-    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
-  }
-
-  // Get cached data for account (from new storage system)
-  async getCachedData(accountId: string): Promise<HistoricalDataCache | null> {
+  // Decrypt and retrieve cache data
+  private async decryptAndRetrieve(): Promise<Record<string, HistoricalDataCache>> {
     try {
-      // Get the last 6 months of data for quick access
-      const sixMonthsAgo = new Date()
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-      const now = new Date()
+      const encrypted = await window.electronAPI.store.get(this.STORAGE_KEY)
+      if (!encrypted) return {}
 
-      const trades = await dataManager.getTradesInRange(accountId, sixMonthsAgo, now)
-      const pnl = await dataManager.getPnLInRange(accountId, sixMonthsAgo, now)
+      const decrypted = crypto.AES.decrypt(encrypted, this.ENCRYPTION_KEY)
+      const jsonStr = decrypted.toString(crypto.enc.Utf8)
+      if (!jsonStr) return {}
 
-      if (trades.length === 0 && pnl.length === 0) {
-        return null
-      }
-
-      // Calculate data range
-      let startDate = new Date().toISOString().slice(0, 10)
-      let totalDays = 0
-
-      if (trades.length > 0 || pnl.length > 0) {
-        const oldestTrade = trades.length > 0 ? Math.min(...trades.map(t => parseInt(t.execTime))) : Date.now()
-        const oldestPnL = pnl.length > 0 ? Math.min(...pnl.map(p => parseInt(p.updatedTime || p.createdTime))) : Date.now()
-        const oldestTimestamp = Math.min(oldestTrade, oldestPnL)
-
-        startDate = new Date(oldestTimestamp).toISOString().slice(0, 10)
-        totalDays = Math.ceil((Date.now() - oldestTimestamp) / (24 * 60 * 60 * 1000))
-      }
-
-      return {
-        accountId,
-        closedPnL: pnl,
-        trades,
-        lastUpdated: Date.now(),
-        dataRange: {
-          startDate,
-          endDate: new Date().toISOString().slice(0, 10),
-          totalDays,
-          chunksRetrieved: Math.ceil(totalDays / this.CHUNK_SIZE_DAYS)
-        },
-        isComplete: true
-      }
-
+      return JSON.parse(jsonStr)
     } catch (error) {
-      console.error('Error getting cached data:', error)
-      return null
+      console.warn('Failed to decrypt historical cache, starting fresh:', error)
+      return {}
     }
   }
 
@@ -118,11 +68,15 @@ export class HistoricalDataService {
     const cacheAge = now - cache.lastUpdated
     const maxAge = this.CACHE_EXPIRY_HOURS * 60 * 60 * 1000
 
+    // In development mode, be more lenient with cache validation
+    const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+
     console.log(`🔍 Cache validation for account ${cache.accountId}:`, {
       cacheAge: `${Math.round(cacheAge / (60 * 60 * 1000))} hours`,
       maxAge: `${this.CACHE_EXPIRY_HOURS} hours`,
       isComplete: cache.isComplete,
       isValid: cacheAge < maxAge && cache.isComplete,
+      isDevelopment,
       totalDays: cache.dataRange.totalDays
     })
 
@@ -143,6 +97,18 @@ export class HistoricalDataService {
     })
 
     return timeSinceUpdate >= updateInterval
+  }
+
+  // Get cached data for account
+  async getCachedData(accountId: string): Promise<HistoricalDataCache | null> {
+    const allCache = await this.decryptAndRetrieve()
+    const accountCache = allCache[accountId]
+
+    if (!accountCache || !this.isCacheValid(accountCache)) {
+      return null
+    }
+
+    return accountCache
   }
 
   // Register progress callback
@@ -301,10 +267,6 @@ export class HistoricalDataService {
     allClosedPnL.sort((a, b) => parseInt(b.updatedTime || b.createdTime) - parseInt(a.updatedTime || a.createdTime))
     allTrades.sort((a, b) => parseInt(b.execTime) - parseInt(a.execTime))
 
-    // Save to new partitioned storage system
-    await dataManager.addTrades(account.id, allTrades)
-    await dataManager.addPnL(account.id, allClosedPnL)
-
     // Calculate actual data range based on real data
     const now = Date.now()
     let actualStartDate: string
@@ -344,6 +306,11 @@ export class HistoricalDataService {
       isComplete: true
     }
 
+    // Save to encrypted cache
+    const allCache = await this.decryptAndRetrieve()
+    allCache[account.id] = cache
+    await this.encryptAndStore(allCache)
+
     this.notifyProgress({
       currentChunk: totalChunks * 2,
       totalChunks: totalChunks * 2,
@@ -358,7 +325,7 @@ export class HistoricalDataService {
       actualDays: actualTotalDays,
       requestedDays: this.INITIAL_DAYS_HISTORY,
       dateRange: `${actualStartDate} to ${cache.dataRange.endDate}`,
-      savedToPartitionedStorage: true
+      cacheSize: JSON.stringify(cache).length
     })
 
     return cache
@@ -398,24 +365,36 @@ export class HistoricalDataService {
         updateEndTime
       )
 
-      // Add new data to partitioned storage
-      if (newTrades.length > 0) {
-        await dataManager.addTrades(account.id, newTrades)
-      }
-      if (newClosedPnL.length > 0) {
-        await dataManager.addPnL(account.id, newClosedPnL)
+      // Merge with existing data, avoiding duplicates
+      const mergedClosedPnL = this.mergeAndDeduplicateClosedPnL(existingCache.closedPnL, newClosedPnL)
+      const mergedTrades = this.mergeAndDeduplicateTrades(existingCache.trades, newTrades)
+
+      // Update cache with new data
+      const updatedCache: HistoricalDataCache = {
+        ...existingCache,
+        closedPnL: mergedClosedPnL,
+        trades: mergedTrades,
+        lastUpdated: now,
+        dataRange: {
+          ...existingCache.dataRange,
+          endDate: new Date().toISOString().slice(0, 10),
+          // Always increment total days as time passes, not capped at 180
+          totalDays: Math.max(
+            existingCache.dataRange.totalDays + 1, // Minimum increment of 1 day
+            mergedClosedPnL.length > 0
+              ? Math.ceil((now - Math.min(...mergedClosedPnL.map(p => parseInt(p.updatedTime || p.createdTime)))) / (24 * 60 * 60 * 1000))
+              : existingCache.dataRange.totalDays + 1
+          )
+        }
       }
 
-      // Get updated cache
-      const updatedCache = await this.getCachedData(account.id)
-
-      if (!updatedCache) {
-        console.warn('Failed to get updated cache, returning existing cache')
-        return existingCache
-      }
+      // Save updated cache
+      const allCache = await this.decryptAndRetrieve()
+      allCache[account.id] = updatedCache
+      await this.encryptAndStore(allCache)
 
       const newDataCount = newClosedPnL.length + newTrades.length
-      const totalDataCount = updatedCache.closedPnL.length + updatedCache.trades.length
+      const totalDataCount = mergedClosedPnL.length + mergedTrades.length
 
       console.log(`✅ Incremental update complete for ${account.name}:`, {
         newRecords: newDataCount,
@@ -429,6 +408,48 @@ export class HistoricalDataService {
       console.warn(`❌ Incremental update failed for ${account.name}, using existing cache:`, error)
       return existingCache
     }
+  }
+
+  // Merge and deduplicate closed P&L data
+  private mergeAndDeduplicateClosedPnL(existing: BybitClosedPnL[], newData: BybitClosedPnL[]): BybitClosedPnL[] {
+    // Create a map for efficient deduplication using orderId + symbol
+    const dataMap = new Map<string, BybitClosedPnL>()
+
+    // Add existing data
+    existing.forEach(item => {
+      const key = `${item.orderId}_${item.symbol}_${item.updatedTime || item.createdTime}`
+      dataMap.set(key, item)
+    })
+
+    // Add new data (will overwrite duplicates)
+    newData.forEach(item => {
+      const key = `${item.orderId}_${item.symbol}_${item.updatedTime || item.createdTime}`
+      dataMap.set(key, item)
+    })
+
+    // Convert back to array and sort by timestamp
+    return Array.from(dataMap.values())
+      .sort((a, b) => parseInt(b.updatedTime || b.createdTime) - parseInt(a.updatedTime || a.createdTime))
+  }
+
+  // Merge and deduplicate trades data
+  private mergeAndDeduplicateTrades(existing: BybitTrade[], newData: BybitTrade[]): BybitTrade[] {
+    // Create a map for efficient deduplication using execId
+    const dataMap = new Map<string, BybitTrade>()
+
+    // Add existing data
+    existing.forEach(item => {
+      dataMap.set(item.execId, item)
+    })
+
+    // Add new data (will overwrite duplicates)
+    newData.forEach(item => {
+      dataMap.set(item.execId, item)
+    })
+
+    // Convert back to array and sort by timestamp
+    return Array.from(dataMap.values())
+      .sort((a, b) => parseInt(b.execTime) - parseInt(a.execTime))
   }
 
   // Fetch closed P&L for a specific chunk
@@ -531,13 +552,14 @@ export class HistoricalDataService {
     return allData
   }
 
-  // Clear cache for specific account (now clears partitioned data)
+  // Clear cache for specific account
   async clearCache(accountId?: string): Promise<void> {
     if (accountId) {
-      await dataManager.clearAccountData(accountId)
+      const allCache = await this.decryptAndRetrieve()
+      delete allCache[accountId]
+      await this.encryptAndStore(allCache)
     } else {
-      // Clear all data - would need to enumerate all accounts
-      console.warn('Clearing all account data not implemented in V2')
+      await window.electronAPI.store.delete(this.STORAGE_KEY)
     }
   }
 
@@ -562,55 +584,22 @@ export class HistoricalDataService {
     }
   }
 
-  // Get cache statistics (now from partitioned storage)
+  // Get cache statistics
   async getCacheStats(): Promise<{ totalAccounts: number; totalSize: string; lastUpdated?: string }> {
-    try {
-      // This would need to enumerate all accounts and get their stats
-      // For now, return basic info
-      return {
-        totalAccounts: 0,
-        totalSize: 'N/A (Partitioned Storage)',
-        lastUpdated: new Date().toISOString()
-      }
-    } catch (error) {
-      console.error('Error getting cache stats:', error)
-      return {
-        totalAccounts: 0,
-        totalSize: '0 KB',
-        lastUpdated: undefined
-      }
+    const allCache = await this.decryptAndRetrieve()
+    const accounts = Object.keys(allCache)
+    const totalSize = JSON.stringify(allCache).length
+
+    let lastUpdated: string | undefined
+    if (accounts.length > 0) {
+      const latestUpdate = Math.max(...Object.values(allCache).map(c => c.lastUpdated))
+      lastUpdated = new Date(latestUpdate).toISOString()
     }
-  }
 
-  // Get account statistics from partitioned storage
-  async getAccountStats(accountId: string): Promise<{
-    totalMonths: number
-    totalTrades: number
-    totalPnLRecords: number
-    dataSize: number
-    oldestData: string
-    newestData: string
-  }> {
-    return await dataManager.getAccountStats(accountId)
-  }
-
-  // Archive old data
-  async archiveOldData(accountId: string, monthsToKeep: number = 24): Promise<void> {
-    await dataManager.archiveOldData(accountId, monthsToKeep)
-  }
-
-  // Optimize storage
-  async optimizeStorage(accountId: string): Promise<void> {
-    await dataManager.optimizeStorage(accountId)
-  }
-
-  // Get migration status for UI
-  async getMigrationStatus() {
-    return await dataMigration.getMigrationStatus()
-  }
-
-  // Manual migration trigger
-  async triggerMigration() {
-    return await dataMigration.performFullMigration()
+    return {
+      totalAccounts: accounts.length,
+      totalSize: `${(totalSize / 1024).toFixed(1)} KB`,
+      lastUpdated
+    }
   }
 }

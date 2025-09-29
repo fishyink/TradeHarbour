@@ -1,5 +1,5 @@
 import crypto from 'crypto-js'
-import { BybitAccount } from './storage'
+import { BybitAccount } from './configManager'
 import {
   BybitApiResponse,
   BybitAccountInfo,

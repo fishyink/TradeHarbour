@@ -3,7 +3,7 @@ import type { EquitySnapshot } from '../store/useAppStore'
 import type { ExchangeAccount, ExchangeType } from '../types/exchanges'
 import { dataManager } from './dataManager'
 
-const ENCRYPTION_KEY = 'bybit-dashboard-encryption-key-2024'
+const ENCRYPTION_KEY = 'trade-harbour-encryption-key-2024'
 
 export interface BybitAccount {
   id: string
@@ -14,7 +14,6 @@ export interface BybitAccount {
   createdAt: number
 }
 
-// Legacy support for existing accounts
 export function convertToExchangeAccount(account: BybitAccount): ExchangeAccount {
   return {
     ...account,
@@ -39,7 +38,7 @@ export interface AppSettings {
   refreshInterval: number
 }
 
-class StorageService {
+class ConfigManager {
   private encrypt(text: string): string {
     return CryptoJS.AES.encrypt(text, ENCRYPTION_KEY).toString()
   }
@@ -49,23 +48,96 @@ class StorageService {
     return bytes.toString(CryptoJS.enc.Utf8)
   }
 
-  async getAccounts(): Promise<BybitAccount[]> {
-    try {
-      const encryptedData = await window.electronAPI.store.get('accounts')
-      if (!encryptedData) return []
+  // Get paths for organized storage
+  private async getConfigPaths() {
+    const dataDir = await window.electronAPI.app.getUserDataPath()
+    return {
+      accounts: `${dataDir}/accounts/accounts.json`,
+      settings: `${dataDir}/accounts/settings.json`,
+      // Legacy paths for migration
+      legacyConfig: `${dataDir}/trade-harbour-config.json`,
+      legacyBybitConfig: `${dataDir}/bybit-dashboard-config.json`
+    }
+  }
 
-      const decryptedData = this.decrypt(encryptedData)
+  // Ensure accounts directory exists
+  private async ensureAccountsDirectory() {
+    const dataDir = await window.electronAPI.app.getUserDataPath()
+    const accountsDir = `${dataDir}/accounts`
+    await window.electronAPI.fileSystem.createDirectory(accountsDir)
+  }
+
+  // Migration: Move data from old locations to new organized structure
+  private async migrateOldConfig(): Promise<void> {
+    const paths = await this.getConfigPaths()
+
+    try {
+      // Check for old bybit-dashboard-config.json
+      let legacyData = null
+      const oldBybitConfig = await window.electronAPI.fileSystem.readFile(paths.legacyBybitConfig)
+      if (oldBybitConfig) {
+        console.log('📦 Migrating from bybit-dashboard-config.json')
+        legacyData = JSON.parse(oldBybitConfig)
+      }
+
+      // Check for trade-harbour-config.json
+      const oldConfig = await window.electronAPI.fileSystem.readFile(paths.legacyConfig)
+      if (oldConfig) {
+        console.log('📦 Migrating from trade-harbour-config.json')
+        legacyData = JSON.parse(oldConfig)
+      }
+
+      if (!legacyData) return
+
+      // Migrate accounts
+      if (legacyData.exchangeAccounts) {
+        console.log(`🔄 Migrating ${legacyData.exchangeAccounts.length} exchange accounts`)
+        await this.saveExchangeAccounts(legacyData.exchangeAccounts)
+      } else if (legacyData.accounts) {
+        console.log(`🔄 Migrating ${legacyData.accounts.length} legacy bybit accounts`)
+        const exchangeAccounts = legacyData.accounts.map(convertToExchangeAccount)
+        await this.saveExchangeAccounts(exchangeAccounts)
+      }
+
+      // Migrate settings
+      if (legacyData.settings) {
+        console.log('⚙️ Migrating settings')
+        await this.saveSettings(legacyData.settings)
+      }
+
+      // Clean up old files after successful migration
+      await window.electronAPI.fileSystem.deleteFile(paths.legacyBybitConfig)
+      await window.electronAPI.fileSystem.deleteFile(paths.legacyConfig)
+
+      console.log('✅ Configuration migration completed')
+
+    } catch (error) {
+      console.warn('Migration failed, starting fresh:', error)
+    }
+  }
+
+  // Exchange Accounts Management
+  async getExchangeAccounts(): Promise<ExchangeAccount[]> {
+    try {
+      await this.ensureAccountsDirectory()
+      await this.migrateOldConfig()
+
+      const paths = await this.getConfigPaths()
+      const data = await window.electronAPI.fileSystem.readFile(paths.accounts)
+
+      if (!data) return []
+
+      const decryptedData = this.decrypt(data)
       return JSON.parse(decryptedData)
     } catch (error) {
-      console.error('Error getting accounts:', error)
-      // Return empty array on any error to prevent crashes
+      console.error('Error getting exchange accounts:', error)
       return []
     }
   }
 
-  async saveAccount(account: BybitAccount): Promise<void> {
+  async saveExchangeAccount(account: ExchangeAccount): Promise<void> {
     try {
-      const accounts = await this.getAccounts()
+      const accounts = await this.getExchangeAccounts()
       const existingIndex = accounts.findIndex(acc => acc.id === account.id)
 
       if (existingIndex >= 0) {
@@ -74,37 +146,56 @@ class StorageService {
         accounts.push(account)
       }
 
-      const encryptedData = this.encrypt(JSON.stringify(accounts))
-      await window.electronAPI.store.set('accounts', encryptedData)
+      await this.saveExchangeAccounts(accounts)
     } catch (error) {
-      console.error('Error saving account:', error)
-      // Show user-friendly error message instead of crashing
-      throw new Error('Failed to save account. Please check if the application has write permissions.')
-    }
-  }
-
-  async deleteAccount(accountId: string): Promise<void> {
-    try {
-      const accounts = await this.getAccounts()
-      const filteredAccounts = accounts.filter(acc => acc.id !== accountId)
-
-      const encryptedData = this.encrypt(JSON.stringify(filteredAccounts))
-      await window.electronAPI.store.set('accounts', encryptedData)
-    } catch (error) {
-      console.error('Error deleting account:', error)
+      console.error('Error saving exchange account:', error)
       throw error
     }
   }
 
+  async saveExchangeAccounts(accounts: ExchangeAccount[]): Promise<void> {
+    try {
+      await this.ensureAccountsDirectory()
+      const paths = await this.getConfigPaths()
+
+      const encryptedData = this.encrypt(JSON.stringify(accounts, null, 2))
+      await window.electronAPI.fileSystem.writeFile(paths.accounts, encryptedData)
+    } catch (error) {
+      console.error('Error saving exchange accounts:', error)
+      throw error
+    }
+  }
+
+  async deleteExchangeAccount(accountId: string): Promise<void> {
+    try {
+      const accounts = await this.getExchangeAccounts()
+      const filteredAccounts = accounts.filter(acc => acc.id !== accountId)
+      await this.saveExchangeAccounts(filteredAccounts)
+
+      // Also clear the account's trading data
+      await dataManager.clearAccountData(accountId)
+    } catch (error) {
+      console.error('Error deleting exchange account:', error)
+      throw error
+    }
+  }
+
+  // Settings Management
   async getSettings(): Promise<AppSettings> {
     try {
-      const settings = await window.electronAPI.store.get('settings')
-      return {
-        theme: 'dark',
-        autoRefresh: true,
-        refreshInterval: 21600000, // 6 hours
-        ...settings,
+      await this.ensureAccountsDirectory()
+      const paths = await this.getConfigPaths()
+      const data = await window.electronAPI.fileSystem.readFile(paths.settings)
+
+      if (!data) {
+        return {
+          theme: 'dark',
+          autoRefresh: true,
+          refreshInterval: 21600000, // 6 hours
+        }
       }
+
+      return JSON.parse(data)
     } catch (error) {
       console.error('Error getting settings:', error)
       return {
@@ -117,27 +208,22 @@ class StorageService {
 
   async saveSettings(settings: Partial<AppSettings>): Promise<void> {
     try {
+      await this.ensureAccountsDirectory()
       const currentSettings = await this.getSettings()
       const newSettings = { ...currentSettings, ...settings }
-      await window.electronAPI.store.set('settings', newSettings)
+
+      const paths = await this.getConfigPaths()
+      await window.electronAPI.fileSystem.writeFile(
+        paths.settings,
+        JSON.stringify(newSettings, null, 2)
+      )
     } catch (error) {
       console.error('Error saving settings:', error)
       throw error
     }
   }
 
-  // Legacy method - now uses partitioned storage
-  async getEquityHistory(): Promise<EquitySnapshot[]> {
-    console.warn('getEquityHistory() is deprecated. Use getEquityHistoryForAccount() instead.')
-    return []
-  }
-
-  // Legacy method - now uses partitioned storage
-  async saveEquityHistory(equityHistory: EquitySnapshot[]): Promise<void> {
-    console.warn('saveEquityHistory() is deprecated. Use saveEquityHistoryForAccount() instead.')
-  }
-
-  // New method for account-specific equity history using partitioned storage
+  // Equity History (now delegated to dataManager)
   async getEquityHistoryForAccount(accountId: string, startDate?: Date, endDate?: Date): Promise<EquitySnapshot[]> {
     try {
       if (startDate && endDate) {
@@ -175,7 +261,6 @@ class StorageService {
     }
   }
 
-  // Save equity snapshots for an account
   async saveEquityHistoryForAccount(accountId: string, equitySnapshots: EquitySnapshot[]): Promise<void> {
     try {
       // Group snapshots by month and save
@@ -206,12 +291,11 @@ class StorageService {
     }
   }
 
-  // Add a single equity snapshot
   async addEquitySnapshot(accountId: string, snapshot: EquitySnapshot): Promise<void> {
     await this.saveEquityHistoryForAccount(accountId, [snapshot])
   }
 
-  // Helper methods for equity history
+  // Helper methods
   private getMonthKey(timestamp: number): string {
     const date = new Date(timestamp)
     return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
@@ -249,79 +333,50 @@ class StorageService {
       .sort((a, b) => b.timestamp - a.timestamp)
   }
 
+  // Legacy methods for backwards compatibility
+  async getAccounts(): Promise<BybitAccount[]> {
+    const exchangeAccounts = await this.getExchangeAccounts()
+    return exchangeAccounts.filter(acc => acc.exchange === 'bybit').map(convertToBybitAccount)
+  }
+
+  async saveAccount(account: BybitAccount): Promise<void> {
+    const exchangeAccount = convertToExchangeAccount(account)
+    await this.saveExchangeAccount(exchangeAccount)
+  }
+
+  async deleteAccount(accountId: string): Promise<void> {
+    await this.deleteExchangeAccount(accountId)
+  }
+
+  // Clear all data
   async clearAllData(): Promise<void> {
     try {
-      await window.electronAPI.store.clear()
+      const paths = await this.getConfigPaths()
+      await window.electronAPI.fileSystem.deleteFile(paths.accounts)
+      await window.electronAPI.fileSystem.deleteFile(paths.settings)
+      console.log('All configuration data cleared')
     } catch (error) {
       console.error('Error clearing data:', error)
       throw error
     }
   }
 
-  // New methods for ExchangeAccount support
-  async getExchangeAccounts(): Promise<ExchangeAccount[]> {
-    try {
-      const encryptedData = await window.electronAPI.store.get('exchangeAccounts')
-      if (!encryptedData) {
-        // Try to migrate from old accounts format
-        const oldAccounts = await this.getAccounts()
-        if (oldAccounts.length > 0) {
-          const exchangeAccounts = oldAccounts.map(convertToExchangeAccount)
-          await this.saveExchangeAccounts(exchangeAccounts)
-          return exchangeAccounts
-        }
-        return []
-      }
-
-      const decryptedData = this.decrypt(encryptedData)
-      return JSON.parse(decryptedData)
-    } catch (error) {
-      console.error('Error getting exchange accounts:', error)
-      return []
-    }
-  }
-
-  async saveExchangeAccount(account: ExchangeAccount): Promise<void> {
-    try {
-      const accounts = await this.getExchangeAccounts()
-      const existingIndex = accounts.findIndex(acc => acc.id === account.id)
-
-      if (existingIndex >= 0) {
-        accounts[existingIndex] = account
-      } else {
-        accounts.push(account)
-      }
-
-      const encryptedData = this.encrypt(JSON.stringify(accounts))
-      await window.electronAPI.store.set('exchangeAccounts', encryptedData)
-    } catch (error) {
-      console.error('Error saving exchange account:', error)
-      throw error
-    }
-  }
-
-  async saveExchangeAccounts(accounts: ExchangeAccount[]): Promise<void> {
-    try {
-      const encryptedData = this.encrypt(JSON.stringify(accounts))
-      await window.electronAPI.store.set('exchangeAccounts', encryptedData)
-    } catch (error) {
-      console.error('Error saving exchange accounts:', error)
-      throw error
-    }
-  }
-
-  async deleteExchangeAccount(accountId: string): Promise<void> {
-    try {
-      const accounts = await this.getExchangeAccounts()
-      const filteredAccounts = accounts.filter(acc => acc.id !== accountId)
-
-      const encryptedData = this.encrypt(JSON.stringify(filteredAccounts))
-      await window.electronAPI.store.set('exchangeAccounts', encryptedData)
-    } catch (error) {
-      console.error('Error deleting exchange account:', error)
-      throw error
+  // Get storage statistics
+  async getStorageStats(): Promise<{
+    accountsFile: string
+    settingsFile: string
+    totalAccounts: number
+  }> {
+    const accounts = await this.getExchangeAccounts()
+    return {
+      accountsFile: 'data/accounts/accounts.json',
+      settingsFile: 'data/accounts/settings.json',
+      totalAccounts: accounts.length
     }
   }
 }
 
-export const storageService = new StorageService()
+export const configManager = new ConfigManager()
+
+// Export for backwards compatibility
+export const storageService = configManager

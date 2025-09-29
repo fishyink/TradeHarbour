@@ -56,8 +56,8 @@ Generated: ${new Date().toISOString()}
 
   // Initialize store with the data directory
   store = new Store({
-    name: 'bybit-dashboard-config',
-    encryptionKey: 'bybit-dashboard-secure-key-2024',
+    name: 'trade-harbour-config',
+    encryptionKey: 'trade-harbour-secure-key-2024',
     cwd: dataDir,
   })
 
@@ -70,8 +70,8 @@ Generated: ${new Date().toISOString()}
     fs.mkdirSync(dataDir, { recursive: true })
   }
   store = new Store({
-    name: 'bybit-dashboard-config',
-    encryptionKey: 'bybit-dashboard-secure-key-2024',
+    name: 'trade-harbour-config',
+    encryptionKey: 'trade-harbour-secure-key-2024',
     cwd: dataDir,
   })
 }
@@ -351,7 +351,97 @@ ipcMain.handle('import-user-data', async (_, filePath: string) => {
 
 
 ipcMain.handle('get-app-version', () => {
-  return '1.5.2' // Our app version, not Electron version
+  return '1.5.5' // Our app version, not Electron version
+})
+
+// File system operations for data manager
+ipcMain.handle('fs-read-file', async (_, filePath: string) => {
+  try {
+    if (fs.existsSync(filePath)) {
+      return fs.readFileSync(filePath, 'utf8')
+    }
+    return null
+  } catch (error) {
+    console.error(`Error reading file ${filePath}:`, error)
+    return null
+  }
+})
+
+ipcMain.handle('fs-write-file', async (_, filePath: string, data: string) => {
+  try {
+    // Ensure directory exists
+    const dir = path.dirname(filePath)
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+    }
+    fs.writeFileSync(filePath, data, 'utf8')
+    return true
+  } catch (error) {
+    console.error(`Error writing file ${filePath}:`, error)
+    return false
+  }
+})
+
+ipcMain.handle('fs-delete-file', async (_, filePath: string) => {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath)
+    }
+    return true
+  } catch (error) {
+    console.error(`Error deleting file ${filePath}:`, error)
+    return false
+  }
+})
+
+ipcMain.handle('fs-create-directory', async (_, dirPath: string) => {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true })
+    }
+    return true
+  } catch (error) {
+    console.error(`Error creating directory ${dirPath}:`, error)
+    return false
+  }
+})
+
+ipcMain.handle('fs-delete-directory', async (_, dirPath: string) => {
+  try {
+    if (fs.existsSync(dirPath)) {
+      fs.rmSync(dirPath, { recursive: true, force: true })
+    }
+    return true
+  } catch (error) {
+    console.error(`Error deleting directory ${dirPath}:`, error)
+    return false
+  }
+})
+
+ipcMain.handle('fs-move-file', async (_, oldPath: string, newPath: string) => {
+  try {
+    if (fs.existsSync(oldPath)) {
+      // Ensure destination directory exists
+      const dir = path.dirname(newPath)
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true })
+      }
+      fs.renameSync(oldPath, newPath)
+    }
+    return true
+  } catch (error) {
+    console.error(`Error moving file ${oldPath} to ${newPath}:`, error)
+    return false
+  }
+})
+
+ipcMain.handle('fs-file-exists', async (_, filePath: string) => {
+  try {
+    return fs.existsSync(filePath)
+  } catch (error) {
+    console.error(`Error checking file existence ${filePath}:`, error)
+    return false
+  }
 })
 
 autoUpdater.on('update-available', () => {

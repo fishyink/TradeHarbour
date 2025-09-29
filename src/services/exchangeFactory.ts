@@ -2,7 +2,7 @@ import { ExchangeAccount, ExchangeType, ExchangeAPI, UnifiedAccountData } from '
 import { bybitAPI } from './bybit'
 import { toobitAPI } from './toobit'
 import { blofinAPI } from './blofin'
-import { convertToBybitAccount } from './storage'
+import { convertToBybitAccount } from './configManager'
 
 class ExchangeFactory {
   private getAPI(exchange: ExchangeType): ExchangeAPI {
