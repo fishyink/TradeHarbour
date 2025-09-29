@@ -23,6 +23,29 @@ try {
     fs.mkdirSync(dataDir, { recursive: true })
   }
 
+  // Create a README file in the data folder so users know what it is
+  const readmePath = path.join(dataDir, 'README-USER-DATA.txt')
+  if (!fs.existsSync(readmePath)) {
+    const readmeContent = `TRADE HARBOUR USER DATA FOLDER
+
+This folder contains all your personal data:
+- Account settings and API keys (encrypted)
+- Trading history and statistics
+- Application preferences
+
+TO UPGRADE TO A NEW VERSION:
+1. Download the new TradeHarbour-portable.exe
+2. Copy this entire "data" folder
+3. Place it next to the new .exe file
+4. Your data will be preserved!
+
+BACKUP: You can backup this folder anywhere for safekeeping.
+
+Generated: ${new Date().toISOString()}
+`
+    fs.writeFileSync(readmePath, readmeContent)
+  }
+
   // Initialize store with the data directory
   store = new Store({
     name: 'bybit-dashboard-config',
