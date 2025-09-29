@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, ipcMain, dialog, protocol } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import Store from 'electron-store'
 import * as path from 'path'
+import * as fs from 'fs'
 
 const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
 
