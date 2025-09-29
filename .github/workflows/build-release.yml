@@ -11,6 +11,9 @@ on:
         required: true
         default: 'v1.5.6'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -88,6 +91,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -96,14 +101,16 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
+      - name: List downloaded files
+        run: |
+          echo "Downloaded artifacts:"
+          find . -name "*.zip" -o -name "*.dmg" -o -name "*.AppImage" | head -20
+
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.version || github.ref_name }}
-          release_name: Trade Harbour ${{ github.event.inputs.version || github.ref_name }} - Multi-Platform Release
+          name: Trade Harbour ${{ github.event.inputs.version || github.ref_name }} - Multi-Platform Release
           body: |
             🚀 **Trade Harbour ${{ github.event.inputs.version || github.ref_name }} - Multi-Platform Release**
 
@@ -143,35 +150,9 @@ jobs:
 
             ---
             *Built with GitHub Actions for maximum compatibility across all platforms.*
+          files: |
+            windows-build/*.zip
+            macos-build/*.dmg
+            linux-build/*.AppImage
           draft: false
           prerelease: false
-
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: windows-build/TradeHarbour-${{ github.event.inputs.version || github.ref_name }}-portable.zip
-          asset_name: TradeHarbour-${{ github.event.inputs.version || github.ref_name }}-portable.zip
-          asset_content_type: application/zip
-
-      - name: Upload macOS Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: macos-build/TradeHarbour-${{ github.event.inputs.version || github.ref_name }}-mac.dmg
-          asset_name: TradeHarbour-${{ github.event.inputs.version || github.ref_name }}-mac.dmg
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: linux-build/TradeHarbour-${{ github.event.inputs.version || github.ref_name }}-linux.AppImage
-          asset_name: TradeHarbour-${{ github.event.inputs.version || github.ref_name }}-linux.AppImage
-          asset_content_type: application/octet-stream
