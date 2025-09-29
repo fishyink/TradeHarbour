@@ -131,23 +131,62 @@ async function createWindow(): Promise<void> {
       mainWindow.loadURL('data:text/html,<h1>Vite dev server not found</h1>')
     }
   } else {
-    // Production mode - load the built HTML file
+    // Production mode - load the built HTML file (no network dependency)
     const htmlPath = path.join(__dirname, 'renderer', 'index.html')
-    console.log('Loading HTML from:', htmlPath)
+    console.log('Production mode - Loading HTML from:', htmlPath)
 
     // Check if file exists
     if (fs.existsSync(htmlPath)) {
-      mainWindow.loadFile(htmlPath)
+      console.log('✓ HTML file found, loading...')
+      try {
+        await mainWindow.loadFile(htmlPath)
+        console.log('✓ Application loaded successfully')
+      } catch (loadError) {
+        console.error('✗ Failed to load HTML file:', loadError)
+        mainWindow.loadURL('data:text/html,<h1>Error: Failed to load application. Try running as administrator or check antivirus settings.</h1>')
+      }
     } else {
-      console.error('HTML file not found at:', htmlPath)
-      // Try alternative path
-      const altPath = path.join(__dirname, '../dist/renderer/index.html')
-      console.log('Trying alternative path:', altPath)
-      if (fs.existsSync(altPath)) {
-        mainWindow.loadFile(altPath)
-      } else {
-        console.error('Alternative HTML file not found at:', altPath)
-        mainWindow.loadURL('data:text/html,<h1>Error: Could not load application files</h1>')
+      console.error('✗ HTML file not found at:', htmlPath)
+      // Try alternative paths
+      const altPaths = [
+        path.join(__dirname, '../dist/renderer/index.html'),
+        path.join(process.resourcesPath, 'app', 'dist', 'renderer', 'index.html'),
+        path.join(process.resourcesPath, 'dist', 'renderer', 'index.html')
+      ]
+
+      let loaded = false
+      for (const altPath of altPaths) {
+        console.log('Trying alternative path:', altPath)
+        if (fs.existsSync(altPath)) {
+          try {
+            await mainWindow.loadFile(altPath)
+            console.log('✓ Application loaded from alternative path:', altPath)
+            loaded = true
+            break
+          } catch (error) {
+            console.error('Failed to load from alternative path:', altPath, error)
+          }
+        }
+      }
+
+      if (!loaded) {
+        console.error('✗ All loading attempts failed')
+        mainWindow.loadURL(`data:text/html,
+          <h1>Trade Harbour - Loading Error</h1>
+          <p>Could not find application files. This might be due to:</p>
+          <ul>
+            <li>Antivirus software blocking the application</li>
+            <li>Incomplete download or extraction</li>
+            <li>Missing file permissions</li>
+          </ul>
+          <p><strong>Solutions:</strong></p>
+          <ol>
+            <li>Run "fix-white-screen.bat" in the same folder</li>
+            <li>Run as Administrator</li>
+            <li>Add to antivirus exceptions</li>
+            <li>Re-download from GitHub</li>
+          </ol>
+        `)
       }
     }
   }

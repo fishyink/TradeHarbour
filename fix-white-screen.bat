@@ -6,6 +6,12 @@ echo.
 echo If Trade Harbour shows a white screen, this will
 echo install the most common fix: Visual C++ Redistributable
 echo.
+echo Common causes of white screen:
+echo 1. Missing Visual C++ Redistributable (most common)
+echo 2. Antivirus software blocking the app
+echo 3. Running from a restricted network location
+echo 4. Missing Windows updates
+echo.
 pause
 
 echo.
