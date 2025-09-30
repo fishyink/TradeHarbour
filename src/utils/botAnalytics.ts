@@ -7,6 +7,7 @@ export interface BotAnalytics {
   pnl7d: number
   pnl30d: number
   pnl90d: number
+  pnl180d: number
   totalPnl: number
   bestTrade: number
   worstTrade: number
@@ -50,10 +51,16 @@ export const calculateBotAnalytics = (
   const winRate = (winningTrades.length / botClosedPnL.length) * 100
 
   // Calculate P&L for different periods
-  const now = Date.now()
-  const day7 = now - (7 * 24 * 60 * 60 * 1000)
-  const day30 = now - (30 * 24 * 60 * 60 * 1000)
-  const day90 = now - (90 * 24 * 60 * 60 * 1000)
+  // Find the most recent trade date to calculate rolling periods from
+  const mostRecentTradeTime = botClosedPnL.length > 0
+    ? Math.max(...botClosedPnL.map(pnl => parseInt(pnl.updatedTime || pnl.createdTime)))
+    : Date.now()
+
+  // Calculate rolling periods from the most recent trade date
+  const day7 = mostRecentTradeTime - (7 * 24 * 60 * 60 * 1000)
+  const day30 = mostRecentTradeTime - (30 * 24 * 60 * 60 * 1000)
+  const day90 = mostRecentTradeTime - (90 * 24 * 60 * 60 * 1000)
+  const day180 = mostRecentTradeTime - (180 * 24 * 60 * 60 * 1000)
 
   const pnl7d = botClosedPnL
     .filter(pnl => parseInt(pnl.updatedTime || pnl.createdTime) >= day7)
@@ -65,6 +72,10 @@ export const calculateBotAnalytics = (
 
   const pnl90d = botClosedPnL
     .filter(pnl => parseInt(pnl.updatedTime || pnl.createdTime) >= day90)
+    .reduce((sum, pnl) => sum + parseFloat(pnl.closedPnl), 0)
+
+  const pnl180d = botClosedPnL
+    .filter(pnl => parseInt(pnl.updatedTime || pnl.createdTime) >= day180)
     .reduce((sum, pnl) => sum + parseFloat(pnl.closedPnl), 0)
 
   const totalPnl = botClosedPnL.reduce((sum, pnl) => sum + parseFloat(pnl.closedPnl), 0)
@@ -92,6 +103,7 @@ export const calculateBotAnalytics = (
     pnl7d,
     pnl30d,
     pnl90d,
+    pnl180d,
     totalPnl,
     bestTrade,
     worstTrade,
@@ -109,6 +121,7 @@ const getEmptyAnalytics = (): BotAnalytics => ({
   pnl7d: 0,
   pnl30d: 0,
   pnl90d: 0,
+  pnl180d: 0,
   totalPnl: 0,
   bestTrade: 0,
   worstTrade: 0,
