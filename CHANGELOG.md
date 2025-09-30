@@ -1,5 +1,42 @@
 # Bybit Dashboard Changelog
 
+## Version 1.6.8 - September 30, 2025
+
+### 🚀 **Enhanced Bot Dashboard with Advanced Analytics**
+- **Sortable Column Headers**: Click any column header to sort bots with visual arrows
+  - Bidirectional sorting (click once to sort, click again to reverse)
+  - Smart defaults: Text fields (A-Z), Numbers (high-to-low)
+  - Visual feedback with blue arrows for active sort column
+  - Support for: Bot Name, Start Date, 7D/30D/90D/180D P&L, Win Rate, Trades, Total P&L
+
+### 📊 **Fixed Time-Based P&L Calculations**
+- **Accurate Period Calculations**: Fixed 7D/30D/90D/180D P&L calculations that were showing "NIL"
+  - Now calculates from most recent trading activity instead of just "today"
+  - Shows meaningful data even for older bots or demo accounts
+  - Added 180-day P&L support to match other time periods
+  - Proper handling of edge cases and empty data sets
+
+### 🎨 **Improved Visual Design & User Experience**
+- **Enhanced Recent Trades Styling**: Transparent backgrounds with colored borders
+  - Green transparent for winning trades, red transparent for losing trades
+  - Hover effects and smooth transitions for better interactivity
+  - Consistent 5-trade display with proper spacing
+- **Profitable/Unprofitable Status**: Added clear status indicators in expanded view
+- **Trade Extremes Styling**: Consistent card design for best/worst trades and streaks
+- **Better Column Alignment**: Improved spacing and visual hierarchy
+- **Removed View Mode Toggle**: Simplified to list view only for cleaner interface
+
+### 🔧 **Technical Improvements**
+- **Backward Compatibility**: All changes work seamlessly with existing data folders
+- **Enhanced Bot Analytics**: Extended analytics interface with new time-based metrics
+- **Improved Component Architecture**: Better separation of concerns in React components
+- **Type Safety**: Enhanced TypeScript interfaces for better development experience
+
+### 📦 **Clean Release Process**
+- **Secure Builds**: Ensured no account data is included in distribution builds
+- **Version Management**: Proper git tagging and changelog documentation
+- **Windows Standalone**: Optimized portable executable for Windows users
+
 ## Version 1.5.5 - September 29, 2025
 
 ### 🏗️ **Organized Multi-Exchange Storage**

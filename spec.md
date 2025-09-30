@@ -110,7 +110,47 @@ Clean, modern UI for all users.
 - **No Dummy Data**: All calculations use actual trading history and account information
 - **Performance**: Real-time calculations using React useMemo for optimal performance
 - **Responsive Design**: Consistent with existing dark UI theme and card-based layout
-    
+
+## Bot Dashboard - Trading Bot Performance Tracking
+
+### Overview
+Comprehensive bot tracking and analytics dashboard for monitoring trading bot performance across multiple accounts and strategies.
+
+### Core Features:
+1. **Bot Management** - Add, edit, and track trading bots with detailed configuration
+   - Bot name, trading pair, start date, account association
+   - External links (DavidDTech, TradingView) for strategy reference
+   - Tag-based organization and categorization
+   - Start/stop tracking functionality
+
+2. **Advanced Analytics** - Real-time performance calculations from actual trading data
+   - **Time-Based P&L**: 7D, 30D, 90D, 180D profit/loss calculations
+   - **Win Rate Analysis**: Success rate based on closed positions
+   - **Trade Statistics**: Total trades, best/worst trades, average performance
+   - **Streak Tracking**: Maximum consecutive wins/losses
+   - **Sharpe Ratio**: Risk-adjusted return calculations
+   - **Equity Curves**: Visual performance tracking over time
+
+3. **Enhanced User Interface**
+   - **Sortable Columns**: Click any header to sort with visual arrow indicators
+   - **Bidirectional Sorting**: Toggle between ascending/descending order
+   - **Smart Filtering**: Filter by account, trading pair, status, win rate
+   - **Search Functionality**: Find bots by name, pair, or tags
+   - **Compact List View**: Optimized for viewing multiple bots at once
+
+4. **Performance Visualization**
+   - **Recent Trades Display**: Last 5 trades with win/loss indicators
+   - **Trade Extremes Cards**: Best/worst performance highlights
+   - **Interactive Charts**: Hover tooltips and equity curve visualization
+   - **Status Indicators**: Profitable/unprofitable visual feedback
+
+### Technical Implementation:
+- **Route**: `/bots`
+- **Data Source**: Filtered P&L data from connected Bybit accounts
+- **Real-Time Calculations**: No dummy data, all metrics from actual trading history
+- **Backward Compatibility**: Works seamlessly with existing data folders
+- **Performance Optimized**: Efficient React components with proper memoization
+
 ## 2. Add a visible version number to the app:
 - Display the **version number** in the **bottom left corner of the sidebar** (under "Settings" or near the logo).
 - Format: `v1.0.X`
