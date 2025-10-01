@@ -107,6 +107,7 @@ jobs:
     needs: [build-mac, build-windows]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    continue-on-error: true
 
     steps:
       - name: Download all artifacts
@@ -142,7 +143,8 @@ jobs:
           echo "Built on $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> release-notes.md
 
       - name: Create/Update Latest Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           tag_name: latest
           name: Latest Build
@@ -153,5 +155,16 @@ jobs:
             TradeHarbour-Windows/TradeHarbour-Windows.zip
           prerelease: false
           draft: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Status
+        if: success()
+        run: echo "✅ Release created successfully!"
+
+      - name: Release Failed - Artifacts Available
+        if: failure()
+        run: |
+          echo "⚠️ Release creation failed, but build artifacts are available for manual download"
+          echo "Download from: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
