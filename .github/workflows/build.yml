@@ -32,15 +32,21 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: List build output
+        run: |
+          echo "Checking release directory structure..."
+          ls -la release/
+          find release -name "*.app" -type d
+
       - name: Create Mac ZIP (Intel)
         run: |
-          cd dist/mac
+          cd release/mac
           zip -r ../../TradeHarbour-macOS-Intel.zip "Trade Harbour.app"
           cd ../..
 
       - name: Create Mac ZIP (Apple Silicon)
         run: |
-          cd dist/mac-arm64
+          cd release/mac-arm64
           zip -r ../../TradeHarbour-macOS-Apple-Silicon.zip "Trade Harbour.app"
           cd ../..
 
