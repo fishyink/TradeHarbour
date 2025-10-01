@@ -81,7 +81,13 @@ jobs:
       - name: Create Windows ZIP
         run: |
           cd release
-          Compress-Archive -Path "Trade Harbour*.zip" -DestinationPath ../TradeHarbour-Windows.zip
+          $zipFile = Get-ChildItem -Filter "*.zip" | Select-Object -First 1
+          if ($zipFile) {
+            Copy-Item $zipFile.FullName -Destination ../TradeHarbour-Windows.zip
+          } else {
+            Write-Host "No ZIP file found, checking for other formats..."
+            Get-ChildItem
+          }
           cd ..
         shell: pwsh
 
