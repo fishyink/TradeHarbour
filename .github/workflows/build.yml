@@ -8,28 +8,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            platform: mac
-            arch: x64
-          - os: macos-latest
-            platform: mac
-            arch: arm64
-          - os: windows-latest
-            platform: windows
-            arch: x64
-
-    runs-on: ${{ matrix.os }}
+  build-mac:
+    runs-on: macos-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -41,67 +28,77 @@ jobs:
         run: npm run build
 
       - name: Build Electron app (Mac)
-        if: matrix.platform == 'mac'
-        run: |
-          npm run build:${{ matrix.platform }}
+        run: npm run build:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Build Electron app (Windows)
-        if: matrix.platform == 'windows'
-        run: npm run build:${{ matrix.platform }}
-
-      - name: Create Mac ZIP (x64)
-        if: matrix.platform == 'mac' && matrix.arch == 'x64'
+      - name: Create Mac ZIP (Intel)
         run: |
           cd dist/mac
-          zip -r ../../TradeHarbour-macOS-Intel.zip TradeHarbour.app
+          zip -r ../../TradeHarbour-macOS-Intel.zip "Trade Harbour.app"
           cd ../..
 
-      - name: Create Mac ZIP (arm64)
-        if: matrix.platform == 'mac' && matrix.arch == 'arm64'
+      - name: Create Mac ZIP (Apple Silicon)
         run: |
           cd dist/mac-arm64
-          zip -r ../../TradeHarbour-macOS-Apple-Silicon.zip TradeHarbour.app
+          zip -r ../../TradeHarbour-macOS-Apple-Silicon.zip "Trade Harbour.app"
           cd ../..
 
-      - name: Create Windows ZIP
-        if: matrix.platform == 'windows'
-        run: |
-          cd dist
-          Compress-Archive -Path "TradeHarbour Setup*.exe" -DestinationPath ../TradeHarbour-Windows.zip
-          cd ..
-        shell: pwsh
-
-      - name: Upload artifacts (Mac x64)
-        if: matrix.platform == 'mac' && matrix.arch == 'x64'
-        uses: actions/upload-artifact@v3
+      - name: Upload artifacts (Mac Intel)
+        uses: actions/upload-artifact@v4
         with:
           name: TradeHarbour-macOS-Intel
           path: TradeHarbour-macOS-Intel.zip
 
-      - name: Upload artifacts (Mac arm64)
-        if: matrix.platform == 'mac' && matrix.arch == 'arm64'
-        uses: actions/upload-artifact@v3
+      - name: Upload artifacts (Mac Apple Silicon)
+        uses: actions/upload-artifact@v4
         with:
           name: TradeHarbour-macOS-Apple-Silicon
           path: TradeHarbour-macOS-Apple-Silicon.zip
 
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite app
+        run: npm run build
+
+      - name: Build Electron app (Windows)
+        run: npm run build:windows
+
+      - name: Create Windows ZIP
+        run: |
+          cd release
+          Compress-Archive -Path "Trade Harbour*.zip" -DestinationPath ../TradeHarbour-Windows.zip
+          cd ..
+        shell: pwsh
+
       - name: Upload artifacts (Windows)
-        if: matrix.platform == 'windows'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: TradeHarbour-Windows
           path: TradeHarbour-Windows.zip
 
   release:
-    needs: build
+    needs: [build-mac, build-windows]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Display structure
         run: ls -R
