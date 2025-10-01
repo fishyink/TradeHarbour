@@ -100,8 +100,7 @@
       "artifactName": "TradeHarbour-${version}-portable.zip",
       "publisherName": "fishyink",
       "verifyUpdateCodeSignature": false,
-      "requestedExecutionLevel": "asInvoker",
-      "icon": "build/icon.ico"
+      "requestedExecutionLevel": "asInvoker"
     },
     "mac": {
       "target": [
