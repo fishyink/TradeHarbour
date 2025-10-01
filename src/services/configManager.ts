@@ -36,6 +36,9 @@ export interface AppSettings {
   theme: 'light' | 'dark'
   autoRefresh: boolean
   refreshInterval: number
+  debugMode: boolean
+  apiRefreshSchedule: 'daily' | 'weekly' | 'custom'
+  customRefreshInterval: number // in hours
 }
 
 class ConfigManager {
@@ -192,6 +195,9 @@ class ConfigManager {
           theme: 'dark',
           autoRefresh: true,
           refreshInterval: 21600000, // 6 hours
+          debugMode: false,
+          apiRefreshSchedule: 'daily',
+          customRefreshInterval: 24, // 24 hours
         }
       }
 
@@ -202,6 +208,9 @@ class ConfigManager {
         theme: 'dark',
         autoRefresh: true,
         refreshInterval: 21600000, // 6 hours
+        debugMode: false,
+        apiRefreshSchedule: 'daily',
+        customRefreshInterval: 24, // 24 hours
       }
     }
   }

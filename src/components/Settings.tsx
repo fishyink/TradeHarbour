@@ -1,16 +1,33 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
+import { apiKeyStatusChecker, AccountApiStatus } from '../utils/apiKeyStatus'
 import packageInfo from '../../package.json'
 
 export const Settings = () => {
   const { settings, updateSettings, accounts } = useAppStore()
   const [version, setVersion] = useState(packageInfo.version)
+  const [apiStatuses, setApiStatuses] = useState<AccountApiStatus[]>([])
+  const [checkingApiStatus, setCheckingApiStatus] = useState(false)
 
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.app.getVersion().then(setVersion)
     }
   }, [])
+
+  const handleCheckApiKeys = async () => {
+    if (accounts.length === 0) return
+
+    setCheckingApiStatus(true)
+    try {
+      const statuses = await apiKeyStatusChecker.checkAllAccountsStatus(accounts)
+      setApiStatuses(statuses)
+    } catch (error) {
+      console.error('Failed to check API key statuses:', error)
+    } finally {
+      setCheckingApiStatus(false)
+    }
+  }
 
   const handleRefreshIntervalChange = (interval: number) => {
     updateSettings({ refreshInterval: interval })
@@ -157,6 +174,224 @@ export const Settings = () => {
           </div>
         </div>
 
+
+        {/* API Settings */}
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            API Settings
+          </h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                API Refresh Schedule
+              </label>
+              <select
+                value={settings.apiRefreshSchedule}
+                onChange={(e) => updateSettings({ apiRefreshSchedule: e.target.value as 'daily' | 'weekly' | 'custom' })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="custom">Custom Interval</option>
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                How often to perform full API data refresh
+              </p>
+            </div>
+
+            {settings.apiRefreshSchedule === 'custom' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Custom Interval (hours)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="168"
+                  value={settings.customRefreshInterval}
+                  onChange={(e) => updateSettings({ customRefreshInterval: parseInt(e.target.value) || 24 })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Enter hours between 1 and 168 (1 week)
+                </p>
+              </div>
+            )}
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="flex items-start space-x-2">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Note:</strong> The hosted version of Trade Harbour avoids API key expiry issues through IP whitelisting. Self-hosted installations may need to manage API key renewals manually.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* API Key Status */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              API Key Status
+            </h2>
+            <button
+              onClick={handleCheckApiKeys}
+              disabled={checkingApiStatus || accounts.length === 0}
+              className="btn-secondary text-sm px-4 py-2 disabled:opacity-50"
+            >
+              {checkingApiStatus ? 'Checking...' : 'Check All Keys'}
+            </button>
+          </div>
+
+          {accounts.length === 0 ? (
+            <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+              No accounts configured. Add an account to check API key status.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {apiStatuses.length > 0 ? (
+                apiStatuses.map(({ accountId, accountName, exchange, status }) => (
+                  <div
+                    key={accountId}
+                    className={`border rounded-lg p-4 ${
+                      status.isValid && status.hasPermissions
+                        ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
+                        : status.isExpired || status.needsRefresh
+                        ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+                        : status.rateLimited
+                        ? 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20'
+                        : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-3 h-3 rounded-full ${
+                          status.isValid && status.hasPermissions
+                            ? 'bg-green-500'
+                            : status.isExpired || status.needsRefresh
+                            ? 'bg-red-500'
+                            : status.rateLimited
+                            ? 'bg-yellow-500'
+                            : 'bg-gray-400'
+                        }`} />
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {accountName}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">
+                            {exchange}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className={`text-sm font-medium ${
+                          status.isValid && status.hasPermissions
+                            ? 'text-green-700 dark:text-green-300'
+                            : status.isExpired || status.needsRefresh
+                            ? 'text-red-700 dark:text-red-300'
+                            : status.rateLimited
+                            ? 'text-yellow-700 dark:text-yellow-300'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          {status.isValid && status.hasPermissions
+                            ? 'Active'
+                            : status.isExpired
+                            ? 'Expired'
+                            : status.needsRefresh
+                            ? 'Needs Refresh'
+                            : status.rateLimited
+                            ? 'Rate Limited'
+                            : 'Invalid'
+                          }
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(status.lastChecked).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {status.errorMessage && (
+                      <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        {status.errorMessage}
+                      </div>
+                    )}
+
+                    {(status.isExpired || status.needsRefresh) && (
+                      <div className="mt-3 text-sm">
+                        <span className="text-red-600 dark:text-red-400 font-medium">
+                          Action Required:
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-400 ml-1">
+                          Please update your API key credentials in the account settings.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                  Click "Check All Keys" to verify API key status
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <div className="flex items-start space-x-2">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Tip:</strong> API keys are checked automatically when fetching account data. Use this manual check to verify status without triggering data refresh.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Debug Settings */}
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Debug & Diagnostics
+          </h2>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Debug Mode
+                </label>
+                <p className="text-xs text-muted">
+                  Enable detailed logging for troubleshooting
+                </p>
+              </div>
+              <button
+                onClick={() => updateSettings({ debugMode: !settings.debugMode })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  settings.debugMode ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.debugMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {settings.debugMode && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <strong>Debug Mode Active:</strong> Detailed logs are being recorded for bot actions, API calls, trades, and system events. Check the Diagnostics page to view logs.
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Data Management */}
         <div className="card p-6">

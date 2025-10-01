@@ -34,6 +34,7 @@ interface AppState {
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>
   loadData: () => Promise<void>
   refreshData: () => Promise<void>
+  refreshAccountData: (accountId: string, onProgress?: (status: string, progress: number) => void) => Promise<void>
   setError: (error: string | null) => void
   addEquitySnapshot: () => void
   clearEquityHistory: () => void
@@ -56,6 +57,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     theme: 'dark',
     autoRefresh: true,
     refreshInterval: 3600000,
+    debugMode: false,
+    apiRefreshSchedule: 'daily',
+    customRefreshInterval: 24,
   },
   isLoading: false,
   error: null,
@@ -160,6 +164,76 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ error: error instanceof Error ? error.message : 'Failed to load data' })
     } finally {
       set({ isLoading: false })
+    }
+  },
+
+  refreshAccountData: async (accountId: string, onProgress?: (status: string, progress: number) => void) => {
+    const { accounts, accountsData } = get()
+    const account = accounts.find(acc => acc.id === accountId)
+
+    if (!account) {
+      throw new Error('Account not found')
+    }
+
+    try {
+      // Update the accountsData to mark this specific account as loading
+      const updatedAccountsData = accountsData.map(data =>
+        data.id === accountId ? { ...data, isLoading: true } : data
+      )
+      set({ accountsData: updatedAccountsData })
+
+      // Step 1: Fetch current account data
+      onProgress?.('Fetching account balance...', 20)
+      const accountData = await exchangeFactory.fetchAccountData(account)
+
+      // Step 2: For Bybit accounts, fetch complete historical data
+      if (account.exchange === 'bybit') {
+        onProgress?.('Fetching historical data...', 40)
+
+        // Force a complete historical data fetch
+        try {
+          await bybitAPI.updateAccountHistoricalData(account as any)
+          onProgress?.('Processing historical data...', 80)
+
+          // Get the enhanced data with historical information
+          const historicalCache = bybitAPI.getCachedHistoricalData(accountData.id)
+          if (historicalCache && historicalCache.isComplete) {
+            // Enhance account data with historical information
+            accountData.trades = historicalCache.trades
+            accountData.closedPnL = historicalCache.closedPnL
+            accountData.withdrawals = historicalCache.withdrawals
+            accountData.deposits = historicalCache.deposits
+            accountData.dataRange = historicalCache.dataRange
+            accountData.performanceMetrics = historicalCache.performanceMetrics
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch historical data for ${account.name}:`, error)
+        }
+      }
+
+      onProgress?.('Finalizing...', 100)
+
+      // Update just this account's data in the store
+      const newAccountsData = accountsData.filter(data => data.id !== accountId)
+      newAccountsData.push(accountData)
+
+      set({
+        accountsData: newAccountsData,
+        lastRefresh: Date.now()
+      })
+    } catch (error) {
+      // Update the specific account with error state
+      const errorAccountData = accountsData.map(data =>
+        data.id === accountId
+          ? {
+              ...data,
+              error: error instanceof Error ? error.message : 'Failed to update account',
+              isLoading: false
+            }
+          : data
+      )
+      set({ accountsData: errorAccountData })
+      throw error
     }
   },
 

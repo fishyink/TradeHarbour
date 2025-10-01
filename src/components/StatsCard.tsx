@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { InfoIcon } from './InfoIcon'
 
 interface StatsCardProps {
   title: string
@@ -6,9 +7,10 @@ interface StatsCardProps {
   change: number
   icon: ReactNode
   timeframe?: string
+  description?: string
 }
 
-export const StatsCard = ({ title, value, change, icon, timeframe }: StatsCardProps) => {
+export const StatsCard = ({ title, value, change, icon, timeframe, description }: StatsCardProps) => {
   const isPositive = change >= 0
   const isZero = change === 0
 
@@ -17,7 +19,10 @@ export const StatsCard = ({ title, value, change, icon, timeframe }: StatsCardPr
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-muted">{title}</p>
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium text-muted">{title}</p>
+              {description && <InfoIcon description={description} />}
+            </div>
             {timeframe && (
               <span className="text-xs text-muted opacity-70">{timeframe}</span>
             )}

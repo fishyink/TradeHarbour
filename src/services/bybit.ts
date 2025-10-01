@@ -10,6 +10,7 @@ import {
 } from '../types/bybit'
 import { apiLogger } from '../utils/apiLogger'
 import { HistoricalDataService } from './historicalDataService'
+import { notificationManager } from '../utils/notifications'
 
 class BybitAPI {
   private readonly baseUrl = 'https://api.bybit.com'
@@ -578,12 +579,39 @@ class BybitAPI {
       if (error instanceof Error) {
         if (error.message.includes('10003')) {
           errorMessage = 'Invalid API key'
+          notificationManager.addApiKeyInvalidNotification({
+            id: account.id,
+            name: account.name,
+            exchange: 'bybit'
+          } as any, 'API key is invalid or has been revoked')
         } else if (error.message.includes('10004')) {
           errorMessage = 'Invalid API signature'
+          notificationManager.addApiKeyInvalidNotification({
+            id: account.id,
+            name: account.name,
+            exchange: 'bybit'
+          } as any, 'API signature validation failed - check secret key')
         } else if (error.message.includes('10005')) {
           errorMessage = 'Permission denied - check API key permissions'
+          notificationManager.addApiKeyInvalidNotification({
+            id: account.id,
+            name: account.name,
+            exchange: 'bybit'
+          } as any, 'API key lacks required permissions')
         } else if (error.message.includes('10006')) {
           errorMessage = 'Too many requests - rate limited'
+          notificationManager.addApiKeyRateLimitNotification({
+            id: account.id,
+            name: account.name,
+            exchange: 'bybit'
+          } as any)
+        } else if (error.message.includes('10018') || error.message.includes('expired')) {
+          errorMessage = 'API key has expired'
+          notificationManager.addApiKeyExpiredNotification({
+            id: account.id,
+            name: account.name,
+            exchange: 'bybit'
+          } as any)
         } else if (error.message.includes('ENOTFOUND') || error.message.includes('network')) {
           errorMessage = 'Network connection error'
         } else if (error.message.includes('Balance:')) {

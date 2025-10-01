@@ -65,22 +65,36 @@ export const ClosedPositionsTable = ({ positions }: ClosedPositionsTableProps) =
     return `${sign}${quantity}`
   }
 
+  const getTradeDirection = (side: string) => {
+    // Convert Bybit's 'Buy'/'Sell' to 'Long'/'Short'
+    // Buy = Long position, Sell = Short position
+    return side === 'Buy' ? 'LONG' : 'SHORT'
+  }
+
+  const getDirectionStyle = (side: string) => {
+    return side === 'Buy'
+      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+  }
+
   return (
     <div className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm table-fixed">
           <colgroup>
             <col className="w-[15%]" />
+            <col className="w-[16%]" />
+            <col className="w-[10%]" />
             <col className="w-[18%]" />
-            <col className="w-[20%]" />
             <col className="w-[12%]" />
-            <col className="w-[20%]" />
-            <col className="w-[15%]" />
+            <col className="w-[18%]" />
+            <col className="w-[11%]" />
           </colgroup>
           <thead>
             <tr className="border-b border-gray-200 dark:border-dark-600">
               <th className="text-left py-2 px-3 font-medium text-muted">Account</th>
               <th className="text-left py-2 px-3 font-medium text-muted">Symbol/Size</th>
+              <th className="text-center py-2 px-3 font-medium text-muted">Side</th>
               <th className="text-left py-2 px-3 font-medium text-muted">Open</th>
               <th className="text-center py-2 px-3 font-medium text-muted">Duration</th>
               <th className="text-left py-2 px-3 font-medium text-muted">Close</th>
@@ -128,6 +142,12 @@ export const ClosedPositionsTable = ({ positions }: ClosedPositionsTableProps) =
                         {formatSize(position.qty || position.closedSize || '0', position.side)}
                       </div>
                     </div>
+                  </td>
+
+                  <td className="py-2 px-3 text-center">
+                    <span className={`inline-flex px-2 py-1 text-xs font-bold rounded ${getDirectionStyle(position.side)}`}>
+                      {getTradeDirection(position.side)}
+                    </span>
                   </td>
 
                   <td className="py-2 px-3">

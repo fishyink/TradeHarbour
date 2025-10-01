@@ -4,18 +4,21 @@ import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './components/Dashboard'
 import { AccountManager } from './components/AccountManager'
+import { AccountsList } from './components/AccountsList'
+import { ManageAccounts } from './components/ManageAccounts'
 import { Settings } from './components/Settings'
 import { Calendar } from './components/Calendar'
 import { Beta } from './components/Beta'
-import { DaviddtechBeta } from './components/DaviddtechBeta'
+import { BotsDashboard } from './components/BotsDashboard'
 import { Diagnostics } from './components/Diagnostics'
 import { TradeHistory } from './components/TradeHistory'
 import { CustomCards } from './components/CustomCards'
 import { CustomDashboard } from './components/CustomDashboard'
+import { AssetsDashboard } from './components/AssetsDashboard'
 import { useAutoRefresh } from './hooks/useAutoRefresh'
 import { useState } from 'react'
 
-type Page = 'dashboard' | 'accounts' | 'settings' | 'calendar' | 'beta' | 'daviddtech-beta' | 'diagnostics' | 'trade-history' | 'custom-cards' | 'custom-dashboard'
+type Page = 'dashboard' | 'accounts' | 'add-account' | 'manage-accounts' | 'bots-dashboard' | 'assets-dashboard' | 'settings' | 'calendar' | 'beta' | 'statistics' | 'diagnostics' | 'trade-history' | 'custom-widgets' | 'custom-dashboard'
 
 function App() {
   const { settings, loadData, error, setError } = useAppStore()
@@ -38,20 +41,26 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'accounts':
-        return <AccountManager />
+        return <AccountsList onPageChange={(page: string) => setCurrentPage(page as Page)} />
+      case 'manage-accounts':
+        return <ManageAccounts />
+      case 'bots-dashboard':
+        return <BotsDashboard />
+      case 'assets-dashboard':
+        return <AssetsDashboard />
       case 'settings':
         return <Settings />
       case 'calendar':
         return <Calendar />
       case 'beta':
         return <Beta />
-      case 'daviddtech-beta':
-        return <DaviddtechBeta />
+      case 'statistics':
+        return <Beta />
       case 'diagnostics':
         return <Diagnostics />
       case 'trade-history':
         return <TradeHistory />
-      case 'custom-cards':
+      case 'custom-widgets':
         return <CustomCards />
       case 'custom-dashboard':
         return <CustomDashboard />

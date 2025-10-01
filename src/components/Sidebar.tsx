@@ -8,12 +8,16 @@ interface SidebarProps {
 
 export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
   const { accounts, accountsData, customCards } = useAppStore()
-  const [customCardsExpanded, setCustomCardsExpanded] = useState(currentPage === 'custom-dashboard' || currentPage === 'custom-cards')
+  const [accountsExpanded, setAccountsExpanded] = useState(currentPage === 'accounts' || currentPage === 'add-account' || currentPage === 'manage-accounts')
+  const [customWidgetsExpanded, setCustomWidgetsExpanded] = useState(currentPage === 'custom-dashboard' || currentPage === 'custom-widgets')
 
-  // Auto-expand Custom Cards submenu when on custom dashboard or custom cards pages
+  // Auto-expand submenus when on related pages
   useEffect(() => {
-    if (currentPage === 'custom-dashboard' || currentPage === 'custom-cards') {
-      setCustomCardsExpanded(true)
+    if (currentPage === 'accounts' || currentPage === 'add-account' || currentPage === 'manage-accounts') {
+      setAccountsExpanded(true)
+    }
+    if (currentPage === 'custom-dashboard' || currentPage === 'custom-widgets') {
+      setCustomWidgetsExpanded(true)
     }
   }, [currentPage])
 
@@ -52,6 +56,7 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
         </svg>
       ),
       badge: accounts.length,
+      hasSubmenu: true,
     },
     {
       id: 'trade-history',
@@ -82,7 +87,7 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
       ),
     },
     {
-      id: 'beta',
+      id: 'statistics',
       label: 'Statistics',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,15 +101,29 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
       ),
     },
     {
-      id: 'daviddtech-beta',
-      label: 'Daviddtech Beta',
+      id: 'bots-dashboard',
+      label: 'Bots Dashboard',
       icon: (
-        <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: 'assets-dashboard',
+      label: 'Assets Dashboard',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
       ),
@@ -124,8 +143,8 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
       ),
     },
     {
-      id: 'custom-cards',
-      label: 'Custom Cards',
+      id: 'custom-widgets',
+      label: 'Custom Widgets',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -170,15 +189,18 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
                 <div>
                   <button
                     onClick={() => {
-                      if (item.id === 'custom-cards') {
-                        setCustomCardsExpanded(!customCardsExpanded)
+                      if (item.id === 'custom-widgets') {
+                        setCustomWidgetsExpanded(!customWidgetsExpanded)
+                        onPageChange(item.id)
+                      } else if (item.id === 'accounts') {
+                        setAccountsExpanded(!accountsExpanded)
                         onPageChange(item.id)
                       } else {
                         onPageChange(item.id)
                       }
                     }}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors duration-200 ${
-                      currentPage === item.id || currentPage === 'custom-dashboard'
+                      currentPage === item.id || (item.id === 'custom-widgets' && currentPage === 'custom-dashboard') || (item.id === 'accounts' && (currentPage === 'add-account' || currentPage === 'manage-accounts'))
                         ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800'
                     }`}
@@ -186,7 +208,9 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
                     {item.icon}
                     <span className="font-medium">{item.label}</span>
                     <svg
-                      className={`w-4 h-4 ml-auto transition-transform ${customCardsExpanded ? 'rotate-90' : ''}`}
+                      className={`w-4 h-4 ml-auto transition-transform ${
+                        (item.id === 'custom-widgets' && customWidgetsExpanded) || (item.id === 'accounts' && accountsExpanded) ? 'rotate-90' : ''
+                      }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -194,7 +218,30 @@ export const Sidebar = ({ currentPage, onPageChange }: SidebarProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
-                  {customCardsExpanded && (
+                  {/* Accounts Submenu */}
+                  {item.id === 'accounts' && accountsExpanded && (
+                    <ul className="ml-6 mt-2 space-y-1">
+                      <li>
+                        <button
+                          onClick={() => onPageChange('manage-accounts')}
+                          className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-left transition-colors duration-200 ${
+                            currentPage === 'manage-accounts'
+                              ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800'
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span className="font-medium">Manage Accounts</span>
+                        </button>
+                      </li>
+                    </ul>
+                  )}
+
+                  {/* Custom Widgets Submenu */}
+                  {item.id === 'custom-widgets' && customWidgetsExpanded && (
                     <ul className="ml-6 mt-2 space-y-1">
                       <li>
                         <button

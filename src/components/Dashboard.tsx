@@ -628,6 +628,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           value={`$${totalEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           change={parseFloat(totalPnL.toFixed(2))}
           timeframe="24h"
+          description="Total account value including all balances and open position values. This is your total net worth across all connected accounts."
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
@@ -640,6 +641,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           value={`$${totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           change={parseFloat(totalPnL.toFixed(2))}
           timeframe="Live"
+          description="Profit or loss from currently open positions that haven't been closed yet. This updates in real-time as prices change."
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -652,6 +654,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           value={calculateStats.fallbackUsed ? "No Closed P&L" : `$${calculateStats.realizedPnL24h.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           change={parseFloat(calculateStats.realizedPnL24h.toFixed(2))}
           timeframe="24h"
+          description="Actual profit or loss from positions that have been closed and settled. This money is permanently added to your account balance."
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -664,6 +667,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           value={calculateStats.fallbackUsed ? "No Data" : `${calculateStats.winRate30d.toFixed(1)}%`}
           change={calculateStats.fallbackUsed ? 0 : parseFloat((calculateStats.winRate30d - 50).toFixed(2))}
           timeframe="30d"
+          description="Percentage of closed trades that were profitable. Higher is better - professional traders typically aim for 50%+ win rates."
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -672,10 +676,11 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
         />
 
         <StatsCard
-          title="Total Trades"
+          title="Total Executions"
           value={calculateStats.fallbackUsed ? `${calculateStats.availableTradeCount} Executions` : calculateStats.totalTrades.toString()}
           change={0}
           timeframe="All Time"
+          description="Total number of order executions (individual buy/sell fills). Different from position closures - one position may have multiple executions."
           icon={(
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -697,10 +702,10 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
       <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4">
         <div className="text-xs font-mono text-yellow-800 dark:text-yellow-200">
           🔧 Debug Info:
-          Current Data: {filteredData.reduce((sum, account) => sum + (account.closedPnL?.length || 0), 0)} closed P&L + {filteredData.reduce((sum, account) => sum + (account.trades?.length || 0), 0)} trades |
+          Current Data: {filteredData.reduce((sum, account) => sum + (account.closedPnL?.length || 0), 0)} Position Closures + {filteredData.reduce((sum, account) => sum + (account.trades?.length || 0), 0)} Order Executions |
           Cache Status: {filteredData.map(account => {
             const cache = bybitAPI.getCachedHistoricalData(account.id);
-            return `${account.name}: ${cache ? `${cache.closedPnL.length}+${cache.trades.length}` : 'No cache'}`;
+            return `${account.name}: ${cache ? `${cache.closedPnL.length} pos + ${cache.trades.length} exec` : 'No cache'}`;
           }).join(' | ')}
         </div>
       </div>

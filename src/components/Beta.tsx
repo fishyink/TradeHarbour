@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
+import { InfoIcon } from './InfoIcon'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, AreaChart, Area } from 'recharts'
 
 export const Beta = () => {
   const { accountsData } = useAppStore()
@@ -397,8 +398,6 @@ export const Beta = () => {
     }
   }, [accountsData])
 
-  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
-
   // Format duration from milliseconds to human readable
   const formatDuration = (durationMs: number) => {
     const hours = Math.floor(durationMs / (1000 * 60 * 60))
@@ -493,7 +492,7 @@ export const Beta = () => {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Beta Portfolio Tools
+            Statistics
           </h1>
           <p className="text-muted">
             Advanced analytics and insights from your trading data
@@ -546,37 +545,55 @@ export const Beta = () => {
             <div className={`text-xl font-bold ${analytics.advancedStats?.profitFactor >= 1.5 ? 'text-green-600' : analytics.advancedStats?.profitFactor >= 1 ? 'text-yellow-600' : 'text-red-600'}`}>
               {analytics.advancedStats?.profitFactor.toFixed(2)}
             </div>
-            <div className="text-xs text-muted">Profit Factor</div>
+            <div className="text-xs text-muted flex items-center justify-center space-x-1">
+              <span>Profit Factor</span>
+              <InfoIcon description="Ratio of gross profit to gross loss. Values above 1.5 indicate strong performance. Formula: Total Winning Amount ÷ Total Losing Amount" />
+            </div>
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
             <div className="text-xl font-bold text-green-600">
               ${analytics.advancedStats?.avgWin.toFixed(0)}
             </div>
-            <div className="text-xs text-muted">Avg Win</div>
+            <div className="text-xs text-muted flex items-center justify-center space-x-1">
+              <span>Avg Win</span>
+              <InfoIcon description="Average profit per winning trade. Higher values indicate better winning trade quality." />
+            </div>
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
             <div className="text-xl font-bold text-red-600">
               ${analytics.advancedStats?.avgLoss.toFixed(0)}
             </div>
-            <div className="text-xs text-muted">Avg Loss</div>
+            <div className="text-xs text-muted flex items-center justify-center space-x-1">
+              <span>Avg Loss</span>
+              <InfoIcon description="Average loss per losing trade. Lower absolute values indicate better risk management." />
+            </div>
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
             <div className={`text-xl font-bold ${analytics.advancedStats?.maxDrawdown < -100 ? 'text-red-600' : 'text-yellow-600'}`}>
               ${analytics.advancedStats?.maxDrawdown.toFixed(0)}
             </div>
-            <div className="text-xs text-muted">Max Drawdown</div>
+            <div className="text-xs text-muted flex items-center justify-center space-x-1">
+              <span>Max Drawdown</span>
+              <InfoIcon description="Largest peak-to-trough decline in daily P&L. Lower values indicate better downside protection." />
+            </div>
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
             <div className="text-xl font-bold text-green-600">
               ${analytics.advancedStats?.maxProfit.toFixed(0)}
             </div>
-            <div className="text-xs text-muted">Max Profit</div>
+            <div className="text-xs text-muted flex items-center justify-center space-x-1">
+              <span>Max Profit</span>
+              <InfoIcon description="Highest single-day profit achieved. Indicates peak performance capability." />
+            </div>
           </div>
           <div className="text-center p-3 bg-gray-50 dark:bg-dark-700 rounded-lg">
             <div className={`text-xl font-bold ${analytics.advancedStats?.sharpeRatio > 1 ? 'text-green-600' : analytics.advancedStats?.sharpeRatio > 0 ? 'text-yellow-600' : 'text-red-600'}`}>
               {analytics.advancedStats?.sharpeRatio.toFixed(2)}
             </div>
-            <div className="text-xs text-muted">Sharpe Ratio</div>
+            <div className="text-xs text-muted flex items-center justify-center space-x-1">
+              <span>Sharpe Ratio</span>
+              <InfoIcon description="Risk-adjusted return measure. Values above 1.0 are good, above 2.0 are excellent. Formula: (Average Return - Risk Free Rate) ÷ Standard Deviation" />
+            </div>
           </div>
         </div>
       </div>
@@ -942,7 +959,7 @@ export const Beta = () => {
 
                   return (
                     <>
-                      <div>• Your most profitable day is <strong>{bestDay?.day}</strong> ({bestDay?.totalPnL >= 0 ? '+' : ''}${bestDay?.totalPnL.toFixed(2)})</div>
+                      <div>• Your most profitable day is <strong>{bestDay?.day}</strong> ({bestDay?.totalPnL && bestDay.totalPnL >= 0 ? '+' : ''}${bestDay?.totalPnL?.toFixed(2)})</div>
                       {worstDay && <div>• Consider avoiding <strong>{worstDay.day}</strong> trading (${worstDay.totalPnL.toFixed(2)} loss)</div>}
                       <div>• You have <strong>{profitableDays} profitable days</strong> out of 7 days of the week</div>
                       <div>• Focus your trading energy on your top 3 performing days for better results</div>
@@ -1073,9 +1090,9 @@ export const Beta = () => {
               Volume Overview
             </h3>
             {(() => {
-              const totalVolume = analytics.enhancedDayPerformance.reduce((sum: number, day: any) => sum + day.volume, 0)
+              const totalVolume = analytics.enhancedDayPerformance?.reduce((sum: number, day: any) => sum + day.volume, 0) || 0
               const last30DaysVolume = analytics.rollingPnL.reduce((sum: number, day: any) => {
-                const dayData = analytics.enhancedDayPerformance.find((d: any) => {
+                const dayData = analytics.enhancedDayPerformance?.find((d: any) => {
                   const dayIndex = new Date(day.date).getDay()
                   return d.shortDay === ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayIndex]
                 })
