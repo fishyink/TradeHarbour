@@ -23,7 +23,9 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:all": "npm run build && electron-builder --win --mac --linux",
-    "dist:portable": "npm run build && electron-builder --win --config.nsis.oneClick=false --config.nsis.allowToChangeInstallationDirectory=true"
+    "dist:portable": "npm run build && electron-builder --win --config.nsis.oneClick=false --config.nsis.allowToChangeInstallationDirectory=true",
+    "build:mac": "electron-builder --mac --x64 --arm64",
+    "build:windows": "electron-builder --win"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
@@ -100,7 +102,7 @@
     "mac": {
       "target": [
         {
-          "target": "dmg",
+          "target": "dir",
           "arch": ["x64", "arm64"]
         }
       ],
@@ -108,8 +110,6 @@
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "identity": null,
-      "artifactName": "TradeHarbour-${version}-mac.dmg",
-      "compression": "normal",
       "type": "distribution"
     },
     "linux": {
