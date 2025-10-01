@@ -87,4 +87,5 @@ cached-data/
 
 # API Keys and sensitive files
 *read only*.txt
-bybit*.txt
+bybit*.txtdata/accounts/*.json
+data/trading-data/
