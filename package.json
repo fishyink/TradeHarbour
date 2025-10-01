@@ -97,10 +97,7 @@
       ],
       "forceCodeSigning": false,
       "signAndEditExecutable": false,
-      "artifactName": "TradeHarbour-${version}-portable.zip",
-      "publisherName": "fishyink",
-      "verifyUpdateCodeSignature": false,
-      "requestedExecutionLevel": "asInvoker"
+      "artifactName": "TradeHarbour-${version}-portable.zip"
     },
     "mac": {
       "target": [
