@@ -104,7 +104,15 @@
       ],
       "forceCodeSigning": false,
       "signAndEditExecutable": false,
-      "artifactName": "TradeHarbour-${version}-portable.zip"
+      "artifactName": "TradeHarbour-${version}-portable.zip",
+      "verifyUpdateCodeSignature": false,
+      "publisherName": "fishyink",
+      "requestedExecutionLevel": "asInvoker",
+      "fileAssociations": [],
+      "extraMetadata": {
+        "description": "Trade Harbour - Cryptocurrency Trading Dashboard",
+        "copyright": "Copyright © 2025 fishyink"
+      }
     },
     "mac": {
       "target": [
