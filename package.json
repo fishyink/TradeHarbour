@@ -85,8 +85,12 @@
     ],
     "extraFiles": [
       {
-        "from": "data",
-        "to": "data"
+        "from": "data/README-USER-DATA.txt",
+        "to": "data/README-USER-DATA.txt"
+      },
+      {
+        "from": "data/README.md",
+        "to": "data/README.md"
       }
     ],
     "win": {
