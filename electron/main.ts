@@ -11,6 +11,8 @@ try {
 }
 import * as path from 'path'
 import * as fs from 'fs'
+import { ccxtAdapter } from './ccxtAdapter'
+import type { ExchangeAccount } from '../src/types/exchanges'
 
 const isDev = !app.isPackaged
 
@@ -449,6 +451,52 @@ ipcMain.handle('fs-file-exists', async (_, filePath: string) => {
   } catch (error) {
     console.error(`Error checking file existence ${filePath}:`, error)
     return false
+  }
+})
+
+// CCXT IPC Handlers
+ipcMain.handle('ccxt-get-supported-exchanges', () => {
+  const ccxt = require('ccxt')
+  return ccxt.exchanges.sort()
+})
+
+ipcMain.handle('ccxt-fetch-account-balance', async (_, account: ExchangeAccount) => {
+  try {
+    return await ccxtAdapter.getAccountBalance(account)
+  } catch (error) {
+    throw error
+  }
+})
+
+ipcMain.handle('ccxt-fetch-positions', async (_, account: ExchangeAccount) => {
+  try {
+    return await ccxtAdapter.getPositions(account)
+  } catch (error) {
+    throw error
+  }
+})
+
+ipcMain.handle('ccxt-fetch-trades', async (_, account: ExchangeAccount, limit?: number) => {
+  try {
+    return await ccxtAdapter.getTrades(account, limit)
+  } catch (error) {
+    throw error
+  }
+})
+
+ipcMain.handle('ccxt-fetch-closed-pnl', async (_, account: ExchangeAccount, limit?: number) => {
+  try {
+    return await ccxtAdapter.getClosedPnL(account, limit)
+  } catch (error) {
+    throw error
+  }
+})
+
+ipcMain.handle('ccxt-fetch-account-data', async (_, account: ExchangeAccount) => {
+  try {
+    return await ccxtAdapter.fetchAccountData(account)
+  } catch (error) {
+    throw error
   }
 })
 

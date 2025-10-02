@@ -31,6 +31,14 @@ const electronAPI = {
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell-open-external', url),
   },
+  ccxt: {
+    getSupportedExchanges: () => ipcRenderer.invoke('ccxt-get-supported-exchanges'),
+    fetchAccountBalance: (account: any) => ipcRenderer.invoke('ccxt-fetch-account-balance', account),
+    fetchPositions: (account: any) => ipcRenderer.invoke('ccxt-fetch-positions', account),
+    fetchTrades: (account: any, limit?: number) => ipcRenderer.invoke('ccxt-fetch-trades', account, limit),
+    fetchClosedPnL: (account: any, limit?: number) => ipcRenderer.invoke('ccxt-fetch-closed-pnl', account, limit),
+    fetchAccountData: (account: any) => ipcRenderer.invoke('ccxt-fetch-account-data', account),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

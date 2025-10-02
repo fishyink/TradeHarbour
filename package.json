@@ -12,7 +12,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
-    "dev:main": "tsc -p tsconfig.main.json && electron dist/main.js",
+    "dev:main": "tsc -p tsconfig.main.json && electron dist/electron/main.js",
     "dev:renderer": "vite",
     "build": "npm run build:main && npm run build:renderer",
     "build:main": "tsc -p tsconfig.main.json",
@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@types/react-beautiful-dnd": "^13.1.8",
+    "ccxt": "^4.5.7",
     "crypto-js": "^4.2.0",
     "electron-store": "^8.1.0",
     "electron-updater": "^6.1.7",
@@ -92,7 +93,9 @@
       "target": [
         {
           "target": "zip",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "forceCodeSigning": false,
@@ -103,7 +106,10 @@
       "target": [
         {
           "target": "dir",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "category": "public.app-category.finance",
@@ -116,7 +122,9 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "category": "Office",

@@ -1,61 +1,15 @@
 import { ExchangeAccount, ExchangeType, ExchangeAPI, UnifiedAccountData } from '../types/exchanges'
-import { bybitAPI } from './bybit'
-import { convertToBybitAccount } from './configManager'
+import { ccxtAdapter } from './ccxtAdapter'
+import { isSupportedExchange } from '../constants/exchanges'
 
 class ExchangeFactory {
   private getAPI(exchange: ExchangeType): ExchangeAPI {
-    switch (exchange) {
-      case 'bybit':
-        return bybitAPI
-      default:
-        throw new Error(`Unsupported exchange: ${exchange}`)
-    }
+    // Use CCXT adapter for all exchanges
+    return ccxtAdapter
   }
 
   async fetchAccountData(account: ExchangeAccount): Promise<UnifiedAccountData> {
     const api = this.getAPI(account.exchange)
-
-    // Special handling for Bybit to maintain backward compatibility
-    if (account.exchange === 'bybit') {
-      const bybitAccount = convertToBybitAccount(account)
-      const bybitData = await bybitAPI.fetchAccountData(bybitAccount)
-
-      // Convert Bybit-specific response to unified format
-      return {
-        id: bybitData.id,
-        name: bybitData.name,
-        exchange: 'bybit',
-        balance: bybitData.balance ? {
-          ...bybitData.balance,
-          exchange: 'bybit'
-        } : null,
-        positions: bybitData.positions.map(pos => ({
-          ...pos,
-          exchange: 'bybit'
-        })),
-        trades: bybitData.trades.map(trade => ({
-          symbol: trade.symbol,
-          orderId: trade.orderId,
-          side: trade.side,
-          orderType: trade.orderType,
-          execFee: trade.execFee,
-          execId: trade.execId,
-          execPrice: trade.execPrice,
-          execQty: trade.execQty,
-          execTime: trade.execTime,
-          exchange: 'bybit',
-          isMaker: trade.isMaker,
-          feeRate: trade.feeRate
-        })),
-        closedPnL: bybitData.closedPnL.map(pnl => ({
-          ...pnl,
-          exchange: 'bybit'
-        })),
-        lastUpdated: bybitData.lastUpdated,
-        error: bybitData.error
-      }
-    }
-
     return api.fetchAccountData(account)
   }
 
@@ -91,16 +45,23 @@ class ExchangeFactory {
   }
 
   getSupportedExchanges(): ExchangeType[] {
-    return ['bybit']
+    // This will be populated by components using async call
+    // For now, return empty array - components should use async getSupportedExchangesAsync
+    return []
+  }
+
+  async getSupportedExchangesAsync(): Promise<ExchangeType[]> {
+    // Get exchanges from main process via IPC
+    return await window.electronAPI.ccxt.getSupportedExchanges()
   }
 
   getExchangeDisplayName(exchange: ExchangeType): string {
-    switch (exchange) {
-      case 'bybit':
-        return 'Bybit'
-      default:
-        return exchange
-    }
+    // Capitalize first letter of exchange name
+    return exchange.charAt(0).toUpperCase() + exchange.slice(1)
+  }
+
+  isExchangeSupported(exchange: ExchangeType): boolean {
+    return isSupportedExchange(exchange)
   }
 
   validateAccountCredentials(account: ExchangeAccount): { valid: boolean; errors: string[] } {
@@ -114,8 +75,10 @@ class ExchangeFactory {
       errors.push('API Secret is required')
     }
 
-    // Exchange-specific validation - currently only Bybit is supported
-    // No additional validation needed for Bybit
+    // Basic validation - exchange existence check done in main process
+    if (!account.exchange || account.exchange.trim().length === 0) {
+      errors.push('Exchange is required')
+    }
 
     return {
       valid: errors.length === 0,

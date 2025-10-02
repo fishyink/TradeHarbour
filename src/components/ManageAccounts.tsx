@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { ExchangeAccount, ExchangeType } from '../types/exchanges'
 import { exchangeFactory } from '../services/exchangeFactory'
+import { SUPPORTED_EXCHANGES, PRIORITY_BETA_EXCHANGES, isSupportedExchange } from '../constants/exchanges'
 
 export const ManageAccounts = () => {
-  const { accounts, addAccount, removeAccount, clearStaleAccountData, refreshAccountData, accountsData } = useAppStore()
+  const { accounts, addAccount, removeAccount, clearStaleAccountData, refreshAccountData, accountsData, settings, updateSettings } = useAppStore()
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editingAccount, setEditingAccount] = useState<ExchangeAccount | null>(null)
@@ -19,11 +20,80 @@ export const ManageAccounts = () => {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [updatingAccounts, setUpdatingAccounts] = useState<Set<string>>(new Set())
   const [updateProgress, setUpdateProgress] = useState<Map<string, { status: string; progress: number; phase: string; details?: string }>>(new Map())
+  const [showBetaWarning, setShowBetaWarning] = useState(false)
+  const [selectedBetaExchange, setSelectedBetaExchange] = useState<string | null>(null)
+  const [allExchanges, setAllExchanges] = useState<string[]>([])
 
   // Auto-clean stale account data on component mount
   useEffect(() => {
     clearStaleAccountData()
+    exchangeFactory.getSupportedExchangesAsync().then(setAllExchanges)
   }, [clearStaleAccountData])
+
+  const handleExchangeChange = (exchange: string) => {
+    // Check if it's a beta exchange and user hasn't seen warning
+    if (!isSupportedExchange(exchange) && !settings.betaExchangeWarningShown) {
+      setSelectedBetaExchange(exchange)
+      setShowBetaWarning(true)
+    } else {
+      setFormData({ ...formData, exchange: exchange as ExchangeType })
+    }
+  }
+
+  const confirmBetaExchange = () => {
+    if (selectedBetaExchange) {
+      setFormData({ ...formData, exchange: selectedBetaExchange as ExchangeType })
+      updateSettings({ betaExchangeWarningShown: true })
+      setShowBetaWarning(false)
+      setSelectedBetaExchange(null)
+    }
+  }
+
+  const cancelBetaExchange = () => {
+    setShowBetaWarning(false)
+    setSelectedBetaExchange(null)
+  }
+
+  const getSortedExchanges = () => {
+    const favorites = settings.favoriteExchanges || []
+    const supported = allExchanges.filter(e => SUPPORTED_EXCHANGES.includes(e as any))
+    const priorityBeta = allExchanges.filter(e => PRIORITY_BETA_EXCHANGES.includes(e as any))
+    const otherBeta = allExchanges.filter(e =>
+      !SUPPORTED_EXCHANGES.includes(e as any) && !PRIORITY_BETA_EXCHANGES.includes(e as any)
+    )
+
+    // Sort supported: favorites first, then alphabetically
+    const sortedSupported = supported.sort((a, b) => {
+      const aFav = favorites.includes(a)
+      const bFav = favorites.includes(b)
+      if (aFav && !bFav) return -1
+      if (!aFav && bFav) return 1
+      return a.localeCompare(b)
+    })
+
+    // Sort priority beta (toobit, blofin): favorites first, then alphabetically
+    const sortedPriorityBeta = priorityBeta.sort((a, b) => {
+      const aFav = favorites.includes(a)
+      const bFav = favorites.includes(b)
+      if (aFav && !bFav) return -1
+      if (!aFav && bFav) return 1
+      return a.localeCompare(b)
+    })
+
+    // Sort other beta: favorites first, then alphabetically
+    const sortedOtherBeta = otherBeta.sort((a, b) => {
+      const aFav = favorites.includes(a)
+      const bFav = favorites.includes(b)
+      if (aFav && !bFav) return -1
+      if (!aFav && bFav) return 1
+      return a.localeCompare(b)
+    })
+
+    // Combine priority beta at top, then other beta
+    const combinedBeta = [...sortedPriorityBeta, ...sortedOtherBeta]
+
+    return { supported: sortedSupported, beta: combinedBeta }
+  }
 
   const censorApiKey = (apiKey: string): string => {
     if (!apiKey) return '••••••••'
@@ -190,15 +260,61 @@ export const ManageAccounts = () => {
 
   if (showAddForm || showEditForm) {
     return (
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {showEditForm ? 'Edit Account' : 'Add New Account'}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {showEditForm ? 'Update your account settings below.' : 'Connect a new trading account to Trade Harbour.'}
-          </p>
-        </div>
+      <>
+        {/* Beta Exchange Warning Modal */}
+        {showBetaWarning && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <svg className="w-8 h-8 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Beta Exchange Warning
+                </h3>
+              </div>
+              <div className="space-y-3 mb-6">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  You've selected <strong className="capitalize">{selectedBetaExchange}</strong>, which is a <strong>beta exchange</strong>.
+                </p>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    ⚠️ <strong>Important:</strong> Beta exchanges have limited testing and may not work as expected. Features might be incomplete or have bugs.
+                  </p>
+                </div>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
+                  <li>Use at your own risk</li>
+                  <li>Data accuracy not guaranteed</li>
+                  <li>Report issues on Discord</li>
+                </ul>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={cancelBetaExchange}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBetaExchange}
+                  className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg"
+                >
+                  I Understand, Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {showEditForm ? 'Edit Account' : 'Add New Account'}
+            </h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {showEditForm ? 'Update your account settings below.' : 'Connect a new trading account to Trade Harbour.'}
+            </p>
+          </div>
 
         <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -228,14 +344,32 @@ export const ManageAccounts = () => {
               </label>
               <select
                 value={formData.exchange}
-                onChange={(e) => setFormData({ ...formData, exchange: e.target.value as ExchangeType })}
+                onChange={(e) => handleExchangeChange(e.target.value)}
                 className="input"
                 required
               >
-                <option value="bybit">Bybit</option>
-                <option value="toobit">Toobit</option>
-                <option value="blofin">Blofin</option>
+                <optgroup label="✅ Supported Exchanges">
+                  {getSortedExchanges().supported.map(exchange => (
+                    <option key={exchange} value={exchange}>
+                      {settings.favoriteExchanges?.includes(exchange) ? '⭐ ' : ''}
+                      {exchangeFactory.getExchangeDisplayName(exchange)}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="⚠️ Beta Exchanges (Use at own risk)">
+                  {getSortedExchanges().beta.map(exchange => (
+                    <option key={exchange} value={exchange}>
+                      {settings.favoriteExchanges?.includes(exchange) ? '⭐ ' : ''}
+                      {exchangeFactory.getExchangeDisplayName(exchange)}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
+              {!isSupportedExchange(formData.exchange) && (
+                <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                  ⚠️ This is a beta exchange with limited testing. Use at your own risk.
+                </p>
+              )}
             </div>
 
             <div>
@@ -308,7 +442,8 @@ export const ManageAccounts = () => {
             </div>
           </form>
         </div>
-      </div>
+        </div>
+      </>
     )
   }
 

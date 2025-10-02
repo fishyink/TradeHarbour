@@ -39,6 +39,8 @@ export interface AppSettings {
   debugMode: boolean
   apiRefreshSchedule: 'daily' | 'weekly' | 'custom'
   customRefreshInterval: number // in hours
+  favoriteExchanges: string[] // User's favorited exchanges
+  betaExchangeWarningShown: boolean // Whether user has seen beta warning
 }
 
 class ConfigManager {
@@ -198,10 +200,18 @@ class ConfigManager {
           debugMode: false,
           apiRefreshSchedule: 'daily',
           customRefreshInterval: 24, // 24 hours
+          favoriteExchanges: [],
+          betaExchangeWarningShown: false,
         }
       }
 
-      return JSON.parse(data)
+      const settings = JSON.parse(data)
+      // Ensure new fields exist for backwards compatibility
+      return {
+        ...settings,
+        favoriteExchanges: settings.favoriteExchanges || [],
+        betaExchangeWarningShown: settings.betaExchangeWarningShown || false,
+      }
     } catch (error) {
       console.error('Error getting settings:', error)
       return {
@@ -211,6 +221,8 @@ class ConfigManager {
         debugMode: false,
         apiRefreshSchedule: 'daily',
         customRefreshInterval: 24, // 24 hours
+        favoriteExchanges: [],
+        betaExchangeWarningShown: false,
       }
     }
   }

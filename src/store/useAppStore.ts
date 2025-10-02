@@ -60,6 +60,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     debugMode: false,
     apiRefreshSchedule: 'daily',
     customRefreshInterval: 24,
+    favoriteExchanges: [],
+    betaExchangeWarningShown: false,
   },
   isLoading: false,
   error: null,

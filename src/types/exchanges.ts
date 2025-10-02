@@ -1,4 +1,5 @@
-export type ExchangeType = 'bybit'
+// Support all CCXT exchanges - use string for flexibility
+export type ExchangeType = string
 
 // Common interface that all exchanges must implement
 export interface ExchangeAccount {

@@ -73,11 +73,9 @@ accounts-data/
 *.db
 
 # Local data directory (contains user accounts and settings)
-data/*.json
-data/*.db
-data/*.sqlite
-data/cache/
-data/logs/
+data/
+data/**
+!data/.gitkeep
 
 # LocalStorage and cached data
 storage/
