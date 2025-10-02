@@ -142,7 +142,7 @@ async function createWindow(): Promise<void> {
     }
   } else {
     // Production mode - load the built HTML file (no network dependency)
-    const htmlPath = path.join(__dirname, 'renderer', 'index.html')
+    const htmlPath = path.join(__dirname, '../renderer', 'index.html')
     console.log('Production mode - Loading HTML from:', htmlPath)
 
     // Check if file exists
