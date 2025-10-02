@@ -11,60 +11,6 @@ permissions:
   contents: write
 
 jobs:
-  build-mac:
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Vite app
-        run: npm run build
-
-      - name: Build Electron app (Mac)
-        run: npm run build:mac
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: List build output
-        run: |
-          echo "Checking release directory structure..."
-          ls -la release/
-          find release -name "*.app" -type d
-
-      - name: Create Mac ZIP (Intel)
-        run: |
-          cd release/mac
-          zip -r ../../TradeHarbour-macOS-Intel.zip "Trade Harbour.app"
-          cd ../..
-
-      - name: Create Mac ZIP (Apple Silicon)
-        run: |
-          cd release/mac-arm64
-          zip -r ../../TradeHarbour-macOS-Apple-Silicon.zip "Trade Harbour.app"
-          cd ../..
-
-      - name: Upload artifacts (Mac Intel)
-        uses: actions/upload-artifact@v4
-        with:
-          name: TradeHarbour-macOS-Intel
-          path: TradeHarbour-macOS-Intel.zip
-
-      - name: Upload artifacts (Mac Apple Silicon)
-        uses: actions/upload-artifact@v4
-        with:
-          name: TradeHarbour-macOS-Apple-Silicon
-          path: TradeHarbour-macOS-Apple-Silicon.zip
-
   build-windows:
     runs-on: windows-latest
 
@@ -107,41 +53,30 @@ jobs:
           path: TradeHarbour-Windows.zip
 
   release:
-    needs: [build-mac, build-windows]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    continue-on-error: true
 
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
 
       - name: Display structure
         run: ls -R
 
       - name: Create Release Notes
         run: |
-          echo "# TradeHarbour Desktop - Automated Build" > release-notes.md
+          echo "# TradeHarbour Desktop - Windows Build" > release-notes.md
           echo "" >> release-notes.md
           echo "## Downloads" >> release-notes.md
           echo "" >> release-notes.md
-          echo "- **TradeHarbour-macOS-Intel.zip** - For Intel-based Macs (x64)" >> release-notes.md
-          echo "- **TradeHarbour-macOS-Apple-Silicon.zip** - For M1/M2/M3 Macs (arm64)" >> release-notes.md
           echo "- **TradeHarbour-Windows.zip** - For Windows (x64)" >> release-notes.md
-          echo "" >> release-notes.md
-          echo "## macOS Installation" >> release-notes.md
-          echo "1. Download the appropriate ZIP for your Mac" >> release-notes.md
-          echo "2. Unzip the file" >> release-notes.md
-          echo "3. Drag TradeHarbour.app to your Applications folder" >> release-notes.md
-          echo "4. Right-click the app and select 'Open' (first time only)" >> release-notes.md
-          echo "5. If you see a 'damaged/corrupt' error, run in Terminal:" >> release-notes.md
-          echo "   \`\`\`bash" >> release-notes.md
-          echo "   xattr -cr /Applications/TradeHarbour.app" >> release-notes.md
-          echo "   \`\`\`" >> release-notes.md
           echo "" >> release-notes.md
           echo "## Windows Installation" >> release-notes.md
           echo "1. Download TradeHarbour-Windows.zip" >> release-notes.md
-          echo "2. Extract and run the installer" >> release-notes.md
+          echo "2. Extract the ZIP file" >> release-notes.md
+          echo "3. Run Trade Harbour.exe" >> release-notes.md
           echo "" >> release-notes.md
           echo "Built on $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> release-notes.md
 
@@ -153,8 +88,6 @@ jobs:
           name: Latest Build
           body_path: release-notes.md
           files: |
-            TradeHarbour-macOS-Intel/TradeHarbour-macOS-Intel.zip
-            TradeHarbour-macOS-Apple-Silicon/TradeHarbour-macOS-Apple-Silicon.zip
             TradeHarbour-Windows/TradeHarbour-Windows.zip
           prerelease: false
           draft: false
