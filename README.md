@@ -1,17 +1,40 @@
-# ⚓ Trade Harbour
+# ⚓ Trade Harbour - BETA
 **One harbour, one dashboard, all your trades.**
 
-## <span style="color: red; font-weight: bold; font-size: 1.5em;">⚠️ ELECTRON DESKTOP APP ONLY - NO BROWSER SUPPORT ⚠️</span>
+## <span style="color: orange; font-weight: bold; font-size: 1.5em;">⚠️ BETA VERSION - Multi-Exchange Support Testing ⚠️</span>
 
 ### <span style="color: red; font-weight: bold;">🚨 IMPORTANT: This application ONLY runs in Electron - NOT in web browsers! 🚨</span>
 
 
-A modern, open-source **Electron desktop application** for monitoring multiple cryptocurrency accounts. Built with Electron, React, TypeScript, and Tailwind CSS.
+A modern, open-source **Electron desktop application** for monitoring multiple cryptocurrency accounts. Now with **103+ exchange support** via CCXT integration. Built with Electron, React, TypeScript, and Tailwind CSS.
 
-![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.3.2-blue.svg)
+![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.6.7--BETA-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![GitHub](https://img.shields.io/badge/GitHub-fishyink%2Ftradeharbour-black.svg)
 ![Platform](https://img.shields.io/badge/Platform-Desktop%20Only-red.svg)
+![Exchanges](https://img.shields.io/badge/Exchanges-103%2B-blue.svg)
+
+---
+
+## 🆕 What's New in v1.6.7 BETA
+
+### Multi-Exchange Support via CCXT
+This beta release introduces **103+ exchange support** through CCXT integration:
+
+- **🌐 Supported Exchanges**: Bybit (fully tested)
+- **⚠️ Beta Exchanges**: Toobit, BloFin (limited testing)
+- **🧪 Experimental**: Binance, Coinbase, Kraken, OKX, and 100+ more
+
+### New Features
+- **Exchange Preferences UI**: Search, favorite, and reorder exchanges
+- **Smart Categorization**: Exchanges organized by support level
+- **Beta Warnings**: Safety prompts for untested exchanges
+- **Improved Architecture**: CCXT runs in main process for better security
+
+### ⚠️ Beta Notice
+This is a **beta release** for testing multi-exchange functionality. Bybit remains the only fully supported exchange. Use other exchanges at your own risk and report any issues on Discord.
+
+**Upgrading from v1.5.x?** Your existing Bybit accounts will work seamlessly. New exchange options will appear in the dropdown when adding accounts.
 
 ---
 
@@ -71,13 +94,23 @@ This opens developer tools to see any error messages.
 
 ## ✨ Key Features
 
-- **Multi-Exchange Support**: Bybit (full), Toobit & Blofin (beta)
+### 🆕 **NEW in v1.6.7 BETA - Multi-Exchange Support**
+- **103+ Exchanges via CCXT**: Connect to any supported cryptocurrency exchange
+- **Smart Categorization**:
+  - ✅ **Supported**: Bybit (fully tested and verified)
+  - ⚠️ **Beta**: Toobit, BloFin (prioritized for testing)
+  - 🧪 **Experimental**: 100+ additional exchanges available
+- **Exchange Preferences**: Search, favorite, and reorder exchanges in Settings
+- **Beta Warnings**: Safety prompts when using untested exchanges
+
+### Core Features
 - **Multi-Account Support**: Connect multiple accounts per exchange
 - **Real-time Tracking**: Live balances, positions, and trades
 - **Performance Analytics**: P&L tracking, win rates, equity curves
 - **Secure Storage**: AES-256 encrypted local API key storage
 - **Data Export**: CSV export for external analysis
 - **Dark/Light Themes**: Professional interface design
+- **100% Portable**: All data stored locally in data/ folder
 
 ---
 
@@ -235,7 +268,7 @@ Trade Harbour includes backup tools:
 
 ## 🔧 Exchange Setup
 
-### Bybit (Full Support)
+### ✅ Bybit (Fully Supported)
 1. **Create API Keys**:
    - Login to [Bybit](https://bybit.com)
    - Go to Account & Security → API Management
@@ -243,20 +276,36 @@ Trade Harbour includes backup tools:
    - Copy API Key and Secret
 
 2. **Add to Trade Harbour**:
-   - Click "Add Account"
+   - Click "Manage Accounts"
+   - Select "Bybit" from dropdown (Supported Exchanges section)
    - Enter account name, API key, and secret
    - Select mainnet or testnet
 
-### Toobit & Blofin (Beta Testing)
-- Limited functionality currently available
-- Full integration coming soon
-- Contact support for beta access
+### ⚠️ Beta Exchanges (Toobit, BloFin)
+- **Status**: Limited testing, use at your own risk
+- **Setup**: Same as Bybit - create API keys and add to Trade Harbour
+- **Warning**: Beta exchange modal will appear on first use
+- **Feedback**: Report issues on Discord
 
-### ⚠️ Security
+### 🧪 Experimental Exchanges (100+ via CCXT)
+- **Available**: Binance, Coinbase, Kraken, OKX, and 100+ more
+- **Support Level**: Community testing only
+- **Setup**: Standard API key setup
+- **Risk**: May have incomplete functionality or bugs
+- **Help**: Check exchange documentation for API key creation
 
-- **Always use READ-ONLY API keys**
-- **Rotate keys regularly**
-- **Your data stays local** - never shared externally
+### 🎯 Exchange Preferences (Settings)
+- **Search**: Find exchanges quickly by name
+- **Favorites**: Star exchanges to keep them at top of list
+- **Beta Warning**: Toggle warnings for beta exchanges
+
+### ⚠️ Security Best Practices
+
+- **Always use READ-ONLY API keys** - Never grant trading permissions
+- **Rotate keys regularly** - Change API keys every 30-90 days
+- **Your data stays local** - Never shared externally or stored in cloud
+- **Test with small accounts first** - Verify functionality before adding main accounts
+- **Report suspicious activity** - Contact us immediately if anything seems wrong
 
 ---
 
