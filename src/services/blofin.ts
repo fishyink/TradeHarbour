@@ -271,8 +271,49 @@ class BloFinAPI implements ExchangeAPI {
   }
 
   async getClosedPnL(account: ExchangeAccount, limit: number = 100): Promise<UnifiedClosedPnL[]> {
-    // BloFin might have a specific endpoint for closed P&L
-    // For now, we'll derive from trade history
+    // BloFin has a position history endpoint for actual closed P&L
+    try {
+      const response = await this.makeRequest<any[]>(
+        account,
+        '/api/v1/account/positions-history',
+        {
+          instType: 'SWAP',
+          limit: Math.min(limit, 100)
+        }
+      )
+
+      if (response.code !== '0') {
+        throw new Error(response.msg)
+      }
+
+      // If position history exists, use it for accurate P&L
+      if (response.data && response.data.length > 0) {
+        return response.data.map((position: any) => ({
+          symbol: position.instId || '',
+          orderId: position.posId || '',
+          side: position.posSide === 'long' ? 'Buy' : 'Sell' as 'Buy' | 'Sell',
+          qty: Math.abs(parseFloat(position.closeAvgPx || 0)).toString(),
+          orderPrice: position.openAvgPx || '0',
+          orderType: 'Market' as 'Market' | 'Limit',
+          execType: 'Trade',
+          closedSize: position.closeTotalPos || '0',
+          cumEntryValue: (parseFloat(position.openAvgPx || 0) * parseFloat(position.closeTotalPos || 0)).toString(),
+          avgEntryPrice: position.openAvgPx || '0',
+          cumExitValue: (parseFloat(position.closeAvgPx || 0) * parseFloat(position.closeTotalPos || 0)).toString(),
+          avgExitPrice: position.closeAvgPx || '0',
+          closedPnl: position.realizedPnl || '0', // Use actual realized P&L from BloFin
+          fillCount: '1',
+          leverage: position.lever || '1',
+          createdTime: position.cTime || Date.now().toString(),
+          updatedTime: position.uTime || Date.now().toString(),
+          exchange: 'blofin'
+        }))
+      }
+    } catch (error) {
+      console.warn('Could not fetch BloFin position history, falling back to trade calculation:', error)
+    }
+
+    // Fallback: derive from trade history if position history fails
     const trades = await this.getTrades(account, limit * 2)
 
     // Group trades by symbol and calculate P&L
@@ -384,7 +425,7 @@ class BloFinAPI implements ExchangeAPI {
 
   async fetchAccountData(account: ExchangeAccount): Promise<UnifiedAccountData> {
     try {
-      console.log(`Fetching BloFin data for account: ${account.name}`)
+      console.log(`[BloFin Native API] Fetching BloFin data for account: ${account.name}`)
 
       const [balance, positions, trades, closedPnL] = await Promise.all([
         this.getAccountBalance(account).catch(err => {

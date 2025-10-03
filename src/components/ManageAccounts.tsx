@@ -5,7 +5,7 @@ import { exchangeFactory } from '../services/exchangeFactory'
 import { SUPPORTED_EXCHANGES, PRIORITY_BETA_EXCHANGES, isSupportedExchange } from '../constants/exchanges'
 
 export const ManageAccounts = () => {
-  const { accounts, addAccount, removeAccount, clearStaleAccountData, refreshAccountData, accountsData, settings, updateSettings } = useAppStore()
+  const { accounts, addAccount, removeAccount, clearStaleAccountData, refreshAccountData, accountsData, settings, updateSettings, startBatchHistoricalFetch } = useAppStore()
   const [showAddForm, setShowAddForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [editingAccount, setEditingAccount] = useState<ExchangeAccount | null>(null)
@@ -14,6 +14,7 @@ export const ManageAccounts = () => {
     exchange: 'bybit' as ExchangeType,
     apiKey: '',
     apiSecret: '',
+    accessPassphrase: '',
     isTestnet: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -23,6 +24,7 @@ export const ManageAccounts = () => {
   const [showBetaWarning, setShowBetaWarning] = useState(false)
   const [selectedBetaExchange, setSelectedBetaExchange] = useState<string | null>(null)
   const [allExchanges, setAllExchanges] = useState<string[]>([])
+  const [showFetchInfo, setShowFetchInfo] = useState<string | null>(null)
 
   // Auto-clean stale account data on component mount
   useEffect(() => {
@@ -56,9 +58,14 @@ export const ManageAccounts = () => {
 
   const getSortedExchanges = () => {
     const favorites = settings.favoriteExchanges || []
-    const supported = allExchanges.filter(e => SUPPORTED_EXCHANGES.includes(e as any))
-    const priorityBeta = allExchanges.filter(e => PRIORITY_BETA_EXCHANGES.includes(e as any))
-    const otherBeta = allExchanges.filter(e =>
+    const enabledExchanges = settings.enabledExchanges || ['bybit', 'blofin', 'toobit']
+
+    // Filter all exchanges to only show enabled ones
+    const filteredExchanges = allExchanges.filter(e => enabledExchanges.includes(e))
+
+    const supported = filteredExchanges.filter(e => SUPPORTED_EXCHANGES.includes(e as any))
+    const priorityBeta = filteredExchanges.filter(e => PRIORITY_BETA_EXCHANGES.includes(e as any))
+    const otherBeta = filteredExchanges.filter(e =>
       !SUPPORTED_EXCHANGES.includes(e as any) && !PRIORITY_BETA_EXCHANGES.includes(e as any)
     )
 
@@ -107,6 +114,7 @@ export const ManageAccounts = () => {
       exchange: 'bybit' as ExchangeType,
       apiKey: '',
       apiSecret: '',
+      accessPassphrase: '',
       isTestnet: false,
     })
     setSubmitError(null)
@@ -124,6 +132,7 @@ export const ManageAccounts = () => {
       exchange: account.exchange,
       apiKey: account.apiKey,
       apiSecret: account.apiSecret,
+      accessPassphrase: account.accessPassphrase || '',
       isTestnet: account.isTestnet,
     })
     setEditingAccount(account)
@@ -156,6 +165,7 @@ export const ManageAccounts = () => {
         exchange: formData.exchange,
         apiKey: formData.apiKey.trim(),
         apiSecret: formData.apiSecret.trim(),
+        accessPassphrase: formData.accessPassphrase?.trim() || undefined,
         isTestnet: formData.isTestnet,
         createdAt: editingAccount?.createdAt || Date.now(),
       }
@@ -165,6 +175,19 @@ export const ManageAccounts = () => {
 
       // If test succeeds, add/update the account
       await addAccount(testAccount)
+
+      // For new Bybit accounts, fetch historical data (7 days fresh + fill gaps)
+      if (!editingAccount && formData.exchange === 'bybit') {
+        console.log('🆕 New Bybit account added, fetching fresh historical data...')
+        try {
+          const { bybitAPI } = await import('../services/bybit')
+          await bybitAPI.fetchCompleteHistoricalData(testAccount as any, true) // forceRefresh = true for new accounts
+          console.log('✅ Historical data fetched for new account')
+        } catch (error) {
+          console.error('Failed to fetch historical data for new account:', error)
+          // Don't throw - account is already added, this is just bonus data
+        }
+      }
 
       // Close form and reset
       setShowAddForm(false)
@@ -400,6 +423,26 @@ export const ManageAccounts = () => {
               />
             </div>
 
+            {/* Passphrase field - only shown for exchanges that require it */}
+            {(formData.exchange === 'blofin' || formData.exchange === 'okx' || formData.exchange === 'kucoin') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  API Passphrase *
+                </label>
+                <input
+                  type="password"
+                  value={formData.accessPassphrase}
+                  onChange={(e) => setFormData({ ...formData, accessPassphrase: e.target.value })}
+                  className="input font-mono"
+                  placeholder="Enter your API passphrase"
+                  required
+                />
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Some exchanges require a passphrase when creating API keys. Check your exchange's API settings.
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -458,7 +501,50 @@ export const ManageAccounts = () => {
             Add, edit, and remove your trading accounts. API keys are encrypted and stored securely.
           </p>
         </div>
-        <div className="mt-4 md:mt-0">
+        <div className="mt-4 md:mt-0 flex items-center space-x-3">
+          <div className="relative group">
+            <button
+              onClick={async () => {
+                if (accounts.length === 0) {
+                  alert('No accounts found. Please add an account first.')
+                  return
+                }
+
+                // Fetch data for all accounts using batch method (shows modal)
+                await startBatchHistoricalFetch(accounts.map(acc => acc.id))
+              }}
+              className="btn-secondary flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Force Get All Historical Data</span>
+              <svg
+                className="w-4 h-4 text-blue-500 dark:text-blue-400 cursor-help"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                onMouseEnter={() => setShowFetchInfo('global')}
+                onMouseLeave={() => setShowFetchInfo(null)}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+
+            {/* Tooltip */}
+            {showFetchInfo === 'global' && (
+              <div className="absolute top-full left-0 mt-2 w-80 p-3 bg-gray-900 dark:bg-gray-800 text-white text-xs rounded-lg shadow-xl z-50">
+                <div className="font-semibold mb-1">Force Fetch All Historical Data</div>
+                <p className="text-gray-300 dark:text-gray-400">
+                  Fetches all available trading history from all your exchange accounts.
+                  This will retrieve trades, positions, and P&L data for each account sequentially.
+                  Progress shown at top of screen with a 0-100% loading bar.
+                </p>
+                <div className="absolute top-0 left-4 transform -translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900 dark:bg-gray-800"></div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleAdd}
             className="btn-primary"
@@ -612,6 +698,7 @@ export const ManageAccounts = () => {
                           >
                             {isUpdating ? 'Updating...' : 'Update'}
                           </button>
+
                           <button
                             onClick={() => handleEdit(account)}
                             className="btn-secondary text-sm"

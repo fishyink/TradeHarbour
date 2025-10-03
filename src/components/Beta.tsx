@@ -1036,38 +1036,6 @@ export const Beta = () => {
         </div>
       )}
 
-      {/* Top 5 Performing Assets */}
-      {(analytics.topPerformingAssets || []).length > 0 && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-gold-600 dark:text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
-            </svg>
-            🏆 Top 5 Performing Assets
-          </h2>
-          <div className="space-y-3">
-            {(analytics.topPerformingAssets || []).map((asset, index) => (
-              <div key={asset.symbol} className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="flex items-center space-x-3">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-white ${
-                    index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-green-500'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">{String(asset.symbol)}</div>
-                    <div className="text-xs text-muted">{Number(asset.percentage).toFixed(1)}% of total volume</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-green-600">+${Number(asset.pnl).toFixed(2)}</div>
-                  <div className="text-xs text-green-500">Profitable</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
 
 

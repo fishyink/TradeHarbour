@@ -9,9 +9,10 @@ interface AccountsListProps {
 }
 
 export const AccountsList = ({ onPageChange }: AccountsListProps) => {
-  const { accounts, accountsData } = useAppStore()
+  const { accounts, accountsData, startBatchHistoricalFetch } = useAppStore()
   const [apiStatuses, setApiStatuses] = useState<Map<string, ApiKeyStatus>>(new Map())
   const [checkingStatus, setCheckingStatus] = useState(false)
+  const [showFetchInfo, setShowFetchInfo] = useState(false)
 
   // Check API key status for all accounts on mount
   useEffect(() => {
@@ -72,7 +73,9 @@ export const AccountsList = ({ onPageChange }: AccountsListProps) => {
       return { status: 'Rate Limited', color: 'text-yellow-600 dark:text-yellow-400', bgColor: 'bg-yellow-100 dark:bg-yellow-900/20' }
     }
 
-    if (hasRecentData && apiStatus?.isValid) {
+    // Show Active if we have recent data, OR if API validation passed
+    // This handles exchanges where API validation isn't implemented yet (like BloFin)
+    if (hasRecentData || apiStatus?.isValid) {
       return { status: 'Active', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/20' }
     }
 
@@ -131,13 +134,48 @@ export const AccountsList = ({ onPageChange }: AccountsListProps) => {
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
-          <button
-            onClick={checkAllApiStatus}
-            disabled={checkingStatus}
-            className="btn-secondary"
-          >
-            {checkingStatus ? 'Checking...' : 'Refresh Status'}
-          </button>
+          <div className="relative group">
+            <button
+              onClick={async () => {
+                if (accounts.length === 0) {
+                  alert('No accounts found. Please add an account first.')
+                  return
+                }
+
+                // Fetch data for all accounts using batch method (shows modal)
+                await startBatchHistoricalFetch(accounts.map(acc => acc.id))
+              }}
+              className="btn-secondary flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Force Get All Historical Data</span>
+              <svg
+                className="w-4 h-4 text-blue-500 dark:text-blue-400 cursor-help"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                onMouseEnter={() => setShowFetchInfo(true)}
+                onMouseLeave={() => setShowFetchInfo(false)}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+
+            {/* Tooltip */}
+            {showFetchInfo && (
+              <div className="absolute top-full left-0 mt-2 w-80 p-3 bg-gray-900 dark:bg-gray-800 text-white text-xs rounded-lg shadow-xl z-50">
+                <div className="font-semibold mb-1">Force Fetch All Historical Data</div>
+                <p className="text-gray-300 dark:text-gray-400">
+                  Fetches all available trading history from all your exchange accounts.
+                  This will retrieve trades, positions, and P&L data for each account sequentially.
+                  Progress shown at top of screen with a 0-100% loading bar.
+                </p>
+                <div className="absolute top-0 left-4 transform -translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900 dark:bg-gray-800"></div>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => onPageChange('manage-accounts')}
             className="btn-primary"

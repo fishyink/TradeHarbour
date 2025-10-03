@@ -18,6 +18,7 @@ interface HistoricalDataCache {
 }
 
 interface HistoricalFetchProgress {
+  accountId: string
   currentChunk: number
   totalChunks: number
   recordsRetrieved: number
@@ -26,10 +27,10 @@ interface HistoricalFetchProgress {
 }
 
 export class HistoricalDataService {
-  private readonly INITIAL_DAYS_HISTORY = 180 // Initial 6 months fetch
+  private readonly INITIAL_DAYS_HISTORY = 180 // Auto-load 6 months on first load
   private readonly CHUNK_SIZE_DAYS = 7
-  private readonly CACHE_EXPIRY_HOURS = 24 // Increased to 24 hours for development stability
-  private readonly INCREMENTAL_UPDATE_HOURS = 6 // Check for new data every 6 hours
+  private readonly CACHE_EXPIRY_HOURS = 24 // Cache valid for 24 hours
+  private readonly INCREMENTAL_UPDATE_MINUTES = 15 // Check for new data every 15 minutes
 
   private progressCallbacks: Set<(progress: HistoricalFetchProgress) => void> = new Set()
 
@@ -133,11 +134,11 @@ export class HistoricalDataService {
   private needsIncrementalUpdate(cache: HistoricalDataCache): boolean {
     const now = Date.now()
     const timeSinceUpdate = now - cache.lastUpdated
-    const updateInterval = this.INCREMENTAL_UPDATE_HOURS * 60 * 60 * 1000
+    const updateInterval = this.INCREMENTAL_UPDATE_MINUTES * 60 * 1000
 
     console.log(`🔄 Incremental update check for account ${cache.accountId}:`, {
-      timeSinceUpdate: `${Math.round(timeSinceUpdate / (60 * 60 * 1000))} hours`,
-      updateInterval: `${this.INCREMENTAL_UPDATE_HOURS} hours`,
+      timeSinceUpdate: `${Math.round(timeSinceUpdate / (60 * 1000))} minutes`,
+      updateInterval: `${this.INCREMENTAL_UPDATE_MINUTES} minutes`,
       needsUpdate: timeSinceUpdate >= updateInterval,
       lastUpdate: new Date(cache.lastUpdated).toISOString()
     })
@@ -222,6 +223,7 @@ export class HistoricalDataService {
       const chunkEndDate = new Date(chunk.end).toISOString().slice(0, 10)
 
       this.notifyProgress({
+        accountId: account.id,
         currentChunk: chunk.index,
         totalChunks,
         recordsRetrieved: allClosedPnL.length,
@@ -264,6 +266,7 @@ export class HistoricalDataService {
       const chunkEndDate = new Date(chunk.end).toISOString().slice(0, 10)
 
       this.notifyProgress({
+        accountId: account.id,
         currentChunk: chunk.index + totalChunks, // Offset for second phase
         totalChunks: totalChunks * 2, // Double for both P&L and execution
         recordsRetrieved: allTrades.length,
@@ -345,6 +348,7 @@ export class HistoricalDataService {
     }
 
     this.notifyProgress({
+      accountId: account.id,
       currentChunk: totalChunks * 2,
       totalChunks: totalChunks * 2,
       recordsRetrieved: allClosedPnL.length + allTrades.length,
@@ -612,5 +616,147 @@ export class HistoricalDataService {
   // Manual migration trigger
   async triggerMigration() {
     return await dataMigration.performFullMigration()
+  }
+
+  // Fast loading: Load from DB first, then fill gaps in background
+  async fetchSmartHistory(
+    account: BybitAccount,
+    apiInstance: any
+  ): Promise<HistoricalDataCache> {
+    const startTime = Date.now()
+    const now = Date.now()
+    const sixMonthsAgo = now - (180 * 24 * 60 * 60 * 1000)
+
+    console.log(`⚡ [${new Date().toISOString().slice(11, 23)}] Fast loading for ${account.name}: Step 1 - Load from database`)
+
+    // Step 1: Load ALL data from database first (very fast - ~1 second)
+    const dbStartTime = Date.now()
+    const cachedPnL = await dataManager.getPnLInRange(account.id, new Date(sixMonthsAgo), new Date(now))
+    const pnlLoadTime = Date.now() - dbStartTime
+
+    const tradesStartTime = Date.now()
+    const cachedTrades = await dataManager.getTradesInRange(account.id, new Date(sixMonthsAgo), new Date(now))
+    const tradesLoadTime = Date.now() - tradesStartTime
+
+    console.log(`✅ [${new Date().toISOString().slice(11, 23)}] Step 1 complete in ${Date.now() - startTime}ms: ${cachedPnL.length} P&L (${pnlLoadTime}ms), ${cachedTrades.length} trades (${tradesLoadTime}ms)`)
+
+    // If we have cached data, return it immediately so UI can render
+    if (cachedPnL.length > 0 || cachedTrades.length > 0) {
+      const oldestDataTimestamp = this.getOldestTimestamp(cachedPnL, cachedTrades)
+      const actualTotalDays = Math.ceil((now - oldestDataTimestamp) / (24 * 60 * 60 * 1000))
+
+      const cache: HistoricalDataCache = {
+        accountId: account.id,
+        closedPnL: cachedPnL,
+        trades: cachedTrades,
+        lastUpdated: now,
+        dataRange: {
+          startDate: new Date(oldestDataTimestamp).toISOString().slice(0, 10),
+          endDate: new Date(now).toISOString().slice(0, 10),
+          totalDays: actualTotalDays,
+          chunksRetrieved: 0
+        },
+        isComplete: false // Mark as incomplete - we'll fill gaps in background
+      }
+
+      console.log(`⚡ [${new Date().toISOString().slice(11, 23)}] Returning cached data immediately (total time: ${Date.now() - startTime}ms)`)
+
+      // Skip gap-filling on startup for fast loading
+      // User can manually refresh data using "Refresh Data" button if needed
+      console.log(`💡 Tip: Use "Refresh Data" button to update historical data`)
+
+      return cache
+    } else {
+      // No cached data - return empty cache (user can manually load via button)
+      console.log(`📭 [${new Date().toISOString().slice(11, 23)}] No cached data found - returning empty cache (${Date.now() - startTime}ms)`)
+
+      const emptyCache: HistoricalDataCache = {
+        accountId: account.id,
+        closedPnL: [],
+        trades: [],
+        lastUpdated: now,
+        dataRange: {
+          startDate: new Date(now).toISOString().slice(0, 10),
+          endDate: new Date(now).toISOString().slice(0, 10),
+          totalDays: 0,
+          chunksRetrieved: 0
+        },
+        isComplete: false
+      }
+
+      return emptyCache
+    }
+  }
+
+  // Background task to fill data gaps (non-blocking)
+  private async fillDataGapsInBackground(
+    account: BybitAccount,
+    apiInstance: any,
+    existingPnL: BybitClosedPnL[],
+    existingTrades: BybitTrade[],
+    startTime: number,
+    endTime: number
+  ): Promise<void> {
+    console.log(`🔄 Background: Checking for data gaps to fill for ${account.name}`)
+
+    try {
+      const oldestDataTimestamp = this.getOldestTimestamp(existingPnL, existingTrades)
+      const hasGap = oldestDataTimestamp > startTime
+
+      if (hasGap) {
+        console.log(`🔍 Background: Gap detected from ${new Date(startTime).toISOString()} to ${new Date(oldestDataTimestamp).toISOString()}`)
+
+        // Fetch gap data from API
+        const gapChunks = this.generateDateChunks(180).filter(chunk =>
+          chunk.start < oldestDataTimestamp
+        )
+
+        for (const chunk of gapChunks) {
+          const gapPnL = await this.fetchClosedPnLChunk(apiInstance, account, chunk.start, chunk.end)
+          const gapTrades = await this.fetchExecutionChunk(apiInstance, account, chunk.start, chunk.end)
+
+          if (gapPnL.length > 0 || gapTrades.length > 0) {
+            // Save to database
+            await dataManager.addPnL(account.id, gapPnL)
+            await dataManager.addTrades(account.id, gapTrades)
+            console.log(`✅ Background: Filled gap - ${gapPnL.length} P&L, ${gapTrades.length} trades`)
+          }
+
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+
+        console.log(`✅ Background: All gaps filled for ${account.name}`)
+      } else {
+        console.log(`✅ Background: No gaps detected for ${account.name}`)
+      }
+    } catch (error) {
+      console.error(`❌ Background: Error filling gaps for ${account.name}:`, error)
+    }
+  }
+
+  // Helper: Get oldest timestamp from data
+  private getOldestTimestamp(pnl: BybitClosedPnL[], trades: BybitTrade[]): number {
+    const timestamps: number[] = []
+
+    if (pnl.length > 0) {
+      timestamps.push(...pnl.map(p => parseInt(p.updatedTime || p.createdTime)))
+    }
+    if (trades.length > 0) {
+      timestamps.push(...trades.map(t => parseInt(t.execTime)))
+    }
+
+    return timestamps.length > 0 ? Math.min(...timestamps) : Date.now()
+  }
+
+  // Helper: Deduplicate by ID
+  private deduplicateById<T extends { orderId?: string; execId?: string }>(items: T[]): T[] {
+    const seen = new Set<string>()
+    return items.filter(item => {
+      const id = item.orderId || item.execId || JSON.stringify(item)
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
   }
 }

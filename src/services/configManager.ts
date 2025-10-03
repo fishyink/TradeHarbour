@@ -41,6 +41,7 @@ export interface AppSettings {
   customRefreshInterval: number // in hours
   favoriteExchanges: string[] // User's favorited exchanges
   betaExchangeWarningShown: boolean // Whether user has seen beta warning
+  enabledExchanges: string[] // Exchanges to show in dropdown (default: bybit, blofin, toobit)
 }
 
 class ConfigManager {

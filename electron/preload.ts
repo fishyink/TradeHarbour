@@ -37,7 +37,7 @@ const electronAPI = {
     fetchPositions: (account: any) => ipcRenderer.invoke('ccxt-fetch-positions', account),
     fetchTrades: (account: any, limit?: number) => ipcRenderer.invoke('ccxt-fetch-trades', account, limit),
     fetchClosedPnL: (account: any, limit?: number) => ipcRenderer.invoke('ccxt-fetch-closed-pnl', account, limit),
-    fetchAccountData: (account: any) => ipcRenderer.invoke('ccxt-fetch-account-data', account),
+    fetchAccountData: (account: any, includeHistory?: boolean) => ipcRenderer.invoke('ccxt-fetch-account-data', account, includeHistory),
   },
 }
 

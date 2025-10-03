@@ -16,90 +16,62 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
-  const { accountsData, accounts, isLoading, forceClearEquityHistory, addEquitySnapshot, backfillEquityHistory } = useAppStore()
+  const { accountsData, accounts, isLoading, isLoadingBackground, backgroundLoadingMessage, forceClearEquityHistory, addEquitySnapshot, backfillEquityHistory, hasCompletedInitialLoad } = useAppStore()
   const [selectedTimeframe, setSelectedTimeframe] = useState<'7D' | '30D' | '90D' | '180D'>('180D')
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [loadingMessage, setLoadingMessage] = useState('Initializing dashboard...')
 
-  // Force clear bad equity history and backfill with real historical data
+  // Track initial data load with progress - only runs once per app session
   React.useEffect(() => {
-    console.log('🔄 Dashboard mounted - starting equity history backfill')
-    console.log('🔍 Current accounts state:', { accountsCount: accounts.length, accountsDataCount: accountsData.length })
-    forceClearEquityHistory()
+    if (hasCompletedInitialLoad) return
 
-    // Add a delay to ensure accounts data is loaded, then backfill
-    setTimeout(async () => {
-      console.log('🔄 Starting backfill after delay...')
-      console.log('🔍 Accounts state at backfill time:', {
-        accountsCount: accounts.length,
-        accountsDataCount: accountsData.length,
-        accountsData: accountsData.map(acc => ({ id: acc.id, name: acc.name, hasBalance: !!acc.balance }))
-      })
+    const startTime = Date.now()
+    setLoadingMessage('Loading account data...')
+    setLoadingProgress(20)
 
-      try {
-        await backfillEquityHistory()
-        console.log('✅ Equity history backfill completed')
+    const checkDataLoaded = setInterval(() => {
+      const elapsed = Date.now() - startTime
 
-        // Debug the result
-        const { equityHistory } = useAppStore.getState()
-        console.log('🔍 Equity history after backfill:', {
-          count: equityHistory?.length || 0,
-          firstPoint: equityHistory?.[0],
-          lastPoint: equityHistory?.[equityHistory.length - 1]
-        })
-      } catch (error) {
-        console.error('❌ Equity backfill failed:', error)
-        // Fallback to adding current snapshot
-        addEquitySnapshot()
-        console.log('📊 Added current equity snapshot as fallback')
+      // Update progress based on elapsed time
+      if (elapsed < 3000) {
+        setLoadingProgress(20 + (elapsed / 3000) * 30) // 20% -> 50%
+        setLoadingMessage('Loading cached historical data...')
+      } else if (elapsed < 6000) {
+        setLoadingProgress(50 + ((elapsed - 3000) / 3000) * 30) // 50% -> 80%
+        setLoadingMessage('Processing trades and positions...')
+      } else {
+        setLoadingProgress(80 + ((elapsed - 6000) / 4000) * 15) // 80% -> 95%
+        setLoadingMessage('Finalizing dashboard...')
       }
-    }, 3000) // Increased delay to 3 seconds
+
+      // Check if data has loaded
+      if (accountsData.length > 0 || elapsed > 15000) {
+        setLoadingProgress(100)
+        setLoadingMessage('Complete!')
+        setTimeout(() => {
+          useAppStore.setState({ hasCompletedInitialLoad: true })
+          clearInterval(checkDataLoaded)
+        }, 300)
+      }
+    }, 100)
+
+    return () => clearInterval(checkDataLoaded)
+  }, [hasCompletedInitialLoad, accountsData.length])
+
+  // Disabled: Equity history backfill on startup (causing 20-second delay)
+  // Users can manually refresh equity data if needed
+  React.useEffect(() => {
+    console.log('⚡ Equity backfill disabled for fast startup')
+    // Just add current snapshot instead of backfilling history
+    addEquitySnapshot()
   }, [])
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
-  const [historicalProgress, setHistoricalProgress] = useState<any>(null)
-  const [historicalCacheStats, setHistoricalCacheStats] = useState<any>(null)
-  const [isLoadingHistorical, setIsLoadingHistorical] = useState(false)
   // const [equityTimeframe, setEquityTimeframe] = useState<'7d' | '30d' | '90d'>('30d')
 
   const filteredData = selectedAccount
     ? (accountsData || []).filter(account => account.id === selectedAccount)
     : (accountsData || [])
-
-  // Historical data setup
-  useEffect(() => {
-    // Set up progress callback
-    const unsubscribe = bybitAPI.onHistoricalProgress((progress) => {
-      setHistoricalProgress(progress)
-      if (progress.isComplete) {
-        setIsLoadingHistorical(false)
-        // Update cache stats after completion
-        bybitAPI.getHistoricalCacheStats().then(setHistoricalCacheStats)
-      }
-    })
-
-    // Get initial cache stats
-    bybitAPI.getHistoricalCacheStats().then(setHistoricalCacheStats)
-
-    return unsubscribe
-  }, [])
-
-  // Load historical data function
-  const loadHistoricalData = async () => {
-    if (accounts.length === 0) return
-
-    setIsLoadingHistorical(true)
-    try {
-      for (const account of accounts) {
-        await bybitAPI.fetchCompleteHistoricalData(account)
-      }
-      // Refresh data to show newly loaded historical data
-      const { refreshData } = useAppStore.getState()
-      await refreshData()
-    } catch (error) {
-      console.error('Error loading historical data:', error)
-    } finally {
-      setIsLoadingHistorical(false)
-    }
-  }
 
   // Debug logging to see what data we're getting
   console.log('Dashboard Debug:', {
@@ -217,13 +189,28 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
     }
   }, [filteredData])
 
-  const allPositions = filteredData.flatMap(account =>
-    account.positions.map(position => ({
-      ...position,
-      accountName: account.name,
-      exchange: 'Bybit' // Default to Bybit for now, will support multiple exchanges
-    }))
-  )
+  const allPositions = filteredData.flatMap(account => {
+    // Get all closed P&L records for this account to find opening times
+    const closedPnL = account.closedPnL || []
+
+    return account.positions.map(position => {
+      // Try to find a matching open position in closed P&L (duration = 0s means still open)
+      const matchingPnL = closedPnL.find(pnl =>
+        pnl.symbol === position.symbol &&
+        pnl.side === (position.side?.toLowerCase() === 'long' ? 'Sell' : 'Buy') // Closed side is opposite
+      )
+
+      // Use the opening time from closed P&L if found, otherwise fall back to position timestamp
+      const openTime = matchingPnL?.createdTime || position.createdTime
+
+      return {
+        ...position,
+        accountName: account.name,
+        exchange: account.exchange || 'Bybit',
+        createdTime: openTime, // Override with correct opening time from trade history
+      }
+    })
+  })
 
   // Calculate combined equity curve from all accounts
   const combinedEquityData = useMemo(() => {
@@ -409,30 +396,90 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
 
   return (
     <div className="space-y-6">
+      {/* Initial Loading Overlay */}
+      {!hasCompletedInitialLoad && (
+        <div className="fixed inset-0 bg-gray-900/95 dark:bg-black/95 z-50 flex items-center justify-center backdrop-blur-sm">
+          <div className="max-w-md w-full mx-4">
+            <div className="bg-white dark:bg-dark-800 rounded-xl shadow-2xl p-8">
+              {/* Logo/Icon */}
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Title */}
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">
+                Loading Dashboard
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">
+                {loadingMessage}
+              </p>
+
+              {/* Progress Bar */}
+              <div className="mb-6">
+                <div className="w-full bg-gray-200 dark:bg-dark-700 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${loadingProgress}%` }}
+                  />
+                </div>
+                <div className="flex justify-between mt-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {Math.round(loadingProgress)}%
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Loading cached data...
+                  </span>
+                </div>
+              </div>
+
+              {/* Loading Steps */}
+              <div className="space-y-2 text-sm">
+                <div className={`flex items-center ${loadingProgress >= 20 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {loadingProgress >= 20 ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    )}
+                  </svg>
+                  Loading account data
+                </div>
+                <div className={`flex items-center ${loadingProgress >= 50 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {loadingProgress >= 50 ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    )}
+                  </svg>
+                  Loading cached historical data
+                </div>
+                <div className={`flex items-center ${loadingProgress >= 80 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {loadingProgress >= 80 ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    )}
+                  </svg>
+                  Processing trades and positions
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Trading Dashboard
         </h1>
 
         <div className="flex items-center space-x-4">
-          <button
-            onClick={() => {
-              console.log('Manual refresh triggered')
-              const { refreshData } = useAppStore.getState()
-              refreshData()
-            }}
-            disabled={isLoading}
-            className={`btn-secondary flex items-center space-x-2 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isLoading ? (
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            )}
-            <span>{isLoading ? 'Loading...' : 'Refresh Data'}</span>
-          </button>
           {accountsData.length > 1 && (
             <select
               value={selectedAccount || ''}
@@ -493,6 +540,23 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           </div>
         </div>
       </div>
+
+      {/* Background Loading Indicator */}
+      {isLoadingBackground && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <div>
+              <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                Loading Historical Data
+              </div>
+              <div className="text-xs text-blue-600 dark:text-blue-400">
+                {backgroundLoadingMessage || 'Fetching trades and P&L data in the background...'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Account Status Warning */}
       {accountsData.some(acc => acc.error || !acc.balance) && (
@@ -689,148 +753,22 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
         />
       </div>
 
-      {/* Historical Data Progress */}
-      {historicalProgress && !historicalProgress.isComplete && (
-        <LoadingProgress
-          progress={historicalProgress}
-          accountName={selectedAccount ? accountsData.find(acc => acc.id === selectedAccount)?.name : undefined}
-          className="mb-6"
-        />
-      )}
-
       {/* Debug Historical Data Status */}
       <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4">
         <div className="text-xs font-mono text-yellow-800 dark:text-yellow-200">
           🔧 Debug Info:
           Current Data: {filteredData.reduce((sum, account) => sum + (account.closedPnL?.length || 0), 0)} Position Closures + {filteredData.reduce((sum, account) => sum + (account.trades?.length || 0), 0)} Order Executions |
           Cache Status: {filteredData.map(account => {
-            const cache = bybitAPI.getCachedHistoricalData(account.id);
-            return `${account.name}: ${cache ? `${cache.closedPnL.length} pos + ${cache.trades.length} exec` : 'No cache'}`;
+            // For Bybit, check the cache; for others, check if data is loaded in accountsData
+            if (account.exchange === 'bybit') {
+              const cache = bybitAPI.getCachedHistoricalData(account.id);
+              return `${account.name}: ${cache ? `${cache.closedPnL.length} pos + ${cache.trades.length} exec` : 'No cache'}`;
+            } else {
+              // For non-Bybit exchanges, check if data exists in the account
+              const hasData = (account.closedPnL?.length || 0) > 0 || (account.trades?.length || 0) > 0;
+              return `${account.name}: ${hasData ? `${account.closedPnL?.length || 0} pos + ${account.trades?.length || 0} exec` : 'No data'}`;
+            }
           }).join(' | ')}
-        </div>
-      </div>
-
-
-      {/* Data Range Information */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <div>
-              <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                Historical Data Range
-              </h3>
-              <div className="text-xs text-blue-600 dark:text-blue-300 space-y-1">
-                {historicalCacheStats ? (
-                  <>
-                    <div>
-                      📊 {historicalCacheStats.totalAccounts} account(s) cached • {historicalCacheStats.totalSize}
-                    </div>
-                    {historicalCacheStats.lastUpdated && (
-                      <div>
-                        🕐 Last updated: {new Date(historicalCacheStats.lastUpdated).toLocaleString()}
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-2">
-                      <span>📅</span>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-blue-700 dark:text-blue-200">
-                          {(() => {
-                            // Calculate actual days of data from cache
-                            const totalRecords = filteredData.reduce((sum, account) => {
-                              const cache = bybitAPI.getCachedHistoricalData(account.id);
-                              return sum + (cache ? cache.closedPnL.length + cache.trades.length : 0);
-                            }, 0);
-
-                            if (totalRecords > 0) {
-                              // Estimate days based on records (rough estimate: ~10 records per day for active trader)
-                              const estimatedDays = Math.min(180, Math.max(1, Math.round(totalRecords / 10)));
-                              return `${estimatedDays} days of trading data collected`;
-                            }
-                            return "180 days (6 months) available for collection";
-                          })()}
-                        </div>
-                        <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5 mt-1">
-                          <div
-                            className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full transition-all duration-300"
-                            style={{
-                              width: `${(() => {
-                                const totalRecords = filteredData.reduce((sum, account) => {
-                                  const cache = bybitAPI.getCachedHistoricalData(account.id);
-                                  return sum + (cache ? cache.closedPnL.length + cache.trades.length : 0);
-                                }, 0);
-                                return totalRecords > 0 ? Math.min(100, (totalRecords / 100) * 10) : 0;
-                              })()}%`
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    {(() => {
-                      const totalRecords = filteredData.reduce((sum, account) => {
-                        const cache = bybitAPI.getCachedHistoricalData(account.id);
-                        return sum + (cache ? cache.closedPnL.length + cache.trades.length : 0);
-                      }, 0);
-
-                      if (totalRecords >= 1000) {
-                        return (
-                          <div className="text-green-600 dark:text-green-400 text-xs font-medium">
-                            ✅ Comprehensive historical data loaded ({totalRecords.toLocaleString()} records)
-                          </div>
-                        );
-                      } else if (totalRecords > 0) {
-                        return (
-                          <div className="text-yellow-600 dark:text-yellow-400 text-xs">
-                            ⚠️ Partial data loaded ({totalRecords.toLocaleString()} records) - Click "Load 6-Month History" for complete data
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </>
-                ) : (
-                  <div>
-                    <div>📭 No historical data cached yet</div>
-                    <div className="text-yellow-600 dark:text-yellow-400 text-xs mt-1">
-                      Click "Load 6-Month History" to collect up to 180 days of trading data
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={loadHistoricalData}
-              disabled={isLoadingHistorical || accounts.length === 0}
-              className={`btn-secondary text-sm flex items-center space-x-2 ${
-                isLoadingHistorical || accounts.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isLoadingHistorical ? (
-                <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              )}
-              <span>{isLoadingHistorical ? 'Loading...' : 'Load 6-Month History'}</span>
-            </button>
-            {historicalCacheStats && historicalCacheStats.totalAccounts > 0 && (
-              <button
-                onClick={async () => {
-                  await bybitAPI.clearHistoricalCache()
-                  const stats = await bybitAPI.getHistoricalCacheStats()
-                  setHistoricalCacheStats(stats)
-                }}
-                className="btn-secondary text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                Clear Cache
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
@@ -961,6 +899,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
           One harbour, one dashboard, all your trades.
         </p>
       </div>
+
     </div>
   )
 }

@@ -137,23 +137,23 @@ export class DataManager {
     return this.getMonthKey(Date.now())
   }
 
-  // Read file with error handling
+  // Read file with error handling (no encryption for performance)
   private async readFile(filePath: string): Promise<any | null> {
     try {
-      const encryptedData = await window.electronAPI.fileSystem.readFile(filePath)
-      if (!encryptedData) return null
-      return this.decrypt(encryptedData)
+      const jsonData = await window.electronAPI.fileSystem.readFile(filePath)
+      if (!jsonData) return null
+      return JSON.parse(jsonData)
     } catch (error) {
       console.warn(`Failed to read file ${filePath}:`, error)
       return null
     }
   }
 
-  // Write file with error handling
+  // Write file with error handling (no encryption for performance)
   private async writeFile(filePath: string, data: any): Promise<boolean> {
     try {
-      const encryptedData = this.encrypt(data)
-      await window.electronAPI.fileSystem.writeFile(filePath, encryptedData)
+      const jsonData = JSON.stringify(data, null, 2)
+      await window.electronAPI.fileSystem.writeFile(filePath, jsonData)
       return true
     } catch (error) {
       console.error(`Failed to write file ${filePath}:`, error)

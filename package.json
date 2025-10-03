@@ -1,6 +1,6 @@
 {
   "name": "trade-harbour",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "Trade Harbour - One harbour, one dashboard, all your trades. A unified trading command center for cryptocurrency exchanges.",
   "main": "dist/electron/main.js",
   "homepage": "https://github.com/fishyink/TradeHarbour",

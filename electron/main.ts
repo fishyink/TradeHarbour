@@ -1,6 +1,24 @@
 import { app, BrowserWindow, Menu, ipcMain, dialog, protocol } from 'electron'
 import Store from 'electron-store'
 
+// Fix EPIPE errors in packaged app by safely wrapping console methods
+if (app.isPackaged) {
+  const safeConsole = (method: 'log' | 'warn' | 'error') => {
+    const original = console[method]
+    console[method] = (...args: any[]) => {
+      try {
+        original.apply(console, args)
+      } catch (error) {
+        // Silently ignore EPIPE errors in packaged app
+      }
+    }
+  }
+
+  safeConsole('log')
+  safeConsole('warn')
+  safeConsole('error')
+}
+
 // Conditional import of electron-updater for better error handling
 let autoUpdater: any = null
 try {
@@ -492,9 +510,9 @@ ipcMain.handle('ccxt-fetch-closed-pnl', async (_, account: ExchangeAccount, limi
   }
 })
 
-ipcMain.handle('ccxt-fetch-account-data', async (_, account: ExchangeAccount) => {
+ipcMain.handle('ccxt-fetch-account-data', async (_, account: ExchangeAccount, includeHistory?: boolean) => {
   try {
-    return await ccxtAdapter.fetchAccountData(account)
+    return await ccxtAdapter.fetchAccountData(account, includeHistory)
   } catch (error) {
     throw error
   }

@@ -54,6 +54,20 @@ export const Settings = () => {
     }
   }
 
+  const toggleEnabledExchange = (exchange: string) => {
+    const enabled = settings.enabledExchanges || ['bybit', 'blofin', 'toobit']
+    const isEnabled = enabled.includes(exchange)
+
+    if (isEnabled) {
+      // Don't allow disabling all exchanges - must have at least one
+      if (enabled.length > 1) {
+        updateSettings({ enabledExchanges: enabled.filter(e => e !== exchange) })
+      }
+    } else {
+      updateSettings({ enabledExchanges: [...enabled, exchange] })
+    }
+  }
+
   const getFilteredExchanges = () => {
     const query = exchangeSearchQuery.toLowerCase()
     return allExchanges.filter(exchange =>
@@ -250,6 +264,17 @@ export const Settings = () => {
           </h2>
 
           <div className="space-y-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+              <div className="flex items-start space-x-2">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Enable/Disable Exchanges:</strong> Toggle exchanges to show or hide them from the account creation dropdown. Star exchanges to make them appear at the top of the list.
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Search Exchanges
@@ -277,35 +302,45 @@ export const Settings = () => {
                 These exchanges are fully tested and supported
               </p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {getSortedExchanges().supported.map(exchange => (
-                  <div
-                    key={exchange}
-                    className="flex items-center justify-between p-2 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
-                        {exchangeFactory.getExchangeDisplayName(exchange)}
-                      </span>
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                        Supported
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => toggleFavoriteExchange(exchange)}
-                      className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded"
+                {getSortedExchanges().supported.map(exchange => {
+                  const isEnabled = (settings.enabledExchanges || ['bybit', 'blofin', 'toobit']).includes(exchange)
+                  return (
+                    <div
+                      key={exchange}
+                      className="flex items-center justify-between p-2 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
                     >
-                      {settings.favoriteExchanges?.includes(exchange) ? (
-                        <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={() => toggleEnabledExchange(exchange)}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                          {exchangeFactory.getExchangeDisplayName(exchange)}
+                        </span>
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                          Supported
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => toggleFavoriteExchange(exchange)}
+                        className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded"
+                        title="Star to show at top"
+                      >
+                        {settings.favoriteExchanges?.includes(exchange) ? (
+                          <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
@@ -323,35 +358,45 @@ export const Settings = () => {
                 ⚠️ Beta exchanges have limited testing. Use at your own risk. Report issues on Discord.
               </p>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {getSortedExchanges().beta.slice(0, 20).map(exchange => (
-                  <div
-                    key={exchange}
-                    className="flex items-center justify-between p-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
-                        {exchangeFactory.getExchangeDisplayName(exchange)}
-                      </span>
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
-                        Beta
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => toggleFavoriteExchange(exchange)}
-                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                {getSortedExchanges().beta.slice(0, 20).map(exchange => {
+                  const isEnabled = (settings.enabledExchanges || ['bybit', 'blofin', 'toobit']).includes(exchange)
+                  return (
+                    <div
+                      key={exchange}
+                      className="flex items-center justify-between p-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50"
                     >
-                      {settings.favoriteExchanges?.includes(exchange) ? (
-                        <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={() => toggleEnabledExchange(exchange)}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                          {exchangeFactory.getExchangeDisplayName(exchange)}
+                        </span>
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                          Beta
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => toggleFavoriteExchange(exchange)}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                        title="Star to show at top"
+                      >
+                        {settings.favoriteExchanges?.includes(exchange) ? (
+                          <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
                 {getSortedExchanges().beta.length > 20 && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
                     Showing 20 of {getSortedExchanges().beta.length} beta exchanges. Use search to find more.

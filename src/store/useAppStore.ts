@@ -19,6 +19,26 @@ export interface CustomCard {
   isActive: boolean
 }
 
+export interface HistoricalFetchProgress {
+  accountId: string | null
+  accountName: string
+  status: 'fetching' | 'idle' | 'complete'
+  progress: number  // 0-100
+  message: string
+  totalRecords?: number
+  error?: string
+}
+
+export interface AccountFetchProgress {
+  id: string
+  name: string
+  exchange: string
+  status: 'pending' | 'fetching' | 'complete' | 'error'
+  progress: number
+  message?: string
+  totalRecords?: number
+}
+
 interface AppState {
   accounts: ExchangeAccount[]
   accountsData: UnifiedAccountData[]
@@ -26,14 +46,21 @@ interface AppState {
   customCards: CustomCard[]
   settings: AppSettings
   isLoading: boolean
+  isLoadingBackground: boolean
+  backgroundLoadingMessage: string
   error: string | null
   lastRefresh: number
+  historicalFetchProgress: HistoricalFetchProgress
+  accountFetchProgress: AccountFetchProgress[]
+  showFetchModal: boolean
+  hasCompletedInitialLoad: boolean
 
   addAccount: (account: Omit<ExchangeAccount, 'id' | 'createdAt'>) => Promise<void>
   removeAccount: (accountId: string) => Promise<void>
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>
   loadData: () => Promise<void>
   refreshData: () => Promise<void>
+  refreshHistoricalDataInBackground: () => Promise<void>
   refreshAccountData: (accountId: string, onProgress?: (status: string, progress: number) => void) => Promise<void>
   setError: (error: string | null) => void
   addEquitySnapshot: () => void
@@ -46,6 +73,13 @@ interface AppState {
   toggleCustomCard: (cardId: string) => Promise<void>
   editCustomCard: (cardId: string, name: string, code: string) => Promise<void>
   updateCustomCardOrder: (cardIds: string[]) => Promise<void>
+  startHistoricalFetch: (accountId: string, accountName: string) => Promise<void>
+  updateHistoricalFetchProgress: (progress: number, message: string) => void
+  completeHistoricalFetch: (totalRecords: number) => void
+  failHistoricalFetch: (error: string) => void
+  setShowFetchModal: (show: boolean) => void
+  updateAccountFetchProgress: (accountId: string, updates: Partial<AccountFetchProgress>) => void
+  startBatchHistoricalFetch: (accountIds: string[]) => Promise<void>
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -62,10 +96,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     customRefreshInterval: 24,
     favoriteExchanges: [],
     betaExchangeWarningShown: false,
+    enabledExchanges: ['bybit', 'blofin', 'toobit'],
   },
   isLoading: false,
+  isLoadingBackground: false,
+  backgroundLoadingMessage: '',
   error: null,
   lastRefresh: 0,
+  historicalFetchProgress: {
+    accountId: null,
+    accountName: '',
+    status: 'idle',
+    progress: 0,
+    message: '',
+  },
+  accountFetchProgress: [],
+  showFetchModal: false,
+  hasCompletedInitialLoad: false,
 
   addAccount: async (accountData) => {
     try {
@@ -81,6 +128,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ accounts: [...accounts, account] })
 
       await get().refreshData()
+
+      // Auto-fetch historical data for new account
+      // This runs in the background with progress indicator for all exchanges
+      get().startHistoricalFetch(account.id, account.name)
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to add account' })
     }
@@ -136,30 +187,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ accounts, settings, equityHistory: combinedEquityHistory, customCards })
 
       if (accounts.length > 0) {
-        // Pre-populate historical cache for Bybit accounts only (other exchanges don't have historical cache yet)
-        await Promise.all(accounts.map(async (account) => {
-          try {
-            if (account.exchange === 'bybit') {
-              const cachedData = await bybitAPI.preloadCachedData(account.id)
-              if (cachedData) {
-                console.log(`🔄 Pre-loaded cached historical data for ${account.name}`)
+        // Disabled: Pre-load historical cache on startup (causes slow loading)
+        // Historical data will be loaded on-demand when user clicks "Load 6-Month History"
+        console.log(`⚡ Historical data pre-loading disabled for instant startup`)
 
-                // Automatically perform incremental update if data is stale
-                try {
-                  await bybitAPI.updateAccountHistoricalData(account as any)
-                  console.log(`📈 Updated historical data for ${account.name}`)
-                } catch (error) {
-                  console.warn(`Failed to update historical data for ${account.name}:`, error)
-                }
-              }
-            }
-          } catch (error) {
-            console.warn(`Failed to pre-load cached data for ${account.name}:`, error)
-          }
-        }))
-
-        // Small delay to ensure cache is ready, then refresh data
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // Refresh current balances only (no historical data)
         await get().refreshData()
       }
     } catch (error) {
@@ -240,25 +272,38 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   refreshData: async () => {
+    console.log('🚀 refreshData() called')
     const { accounts } = get()
 
     if (accounts.length === 0) {
+      console.log('❌ No accounts found, skipping refresh')
       set({ accountsData: [], lastRefresh: Date.now() })
       return
     }
 
+    console.log(`✅ Found ${accounts.length} accounts, starting refresh...`)
+
     try {
       set({ isLoading: true, error: null })
 
-      // Fetch current account data using exchange factory
-      const accountsData = await exchangeFactory.fetchAllAccountsData(accounts)
+      // Fast load: Fetch current account data (balance + positions only)
+      console.log('⚡ Fast loading: Fetching balance and positions only...')
+      const accountsData = await exchangeFactory.fetchAllAccountsData(accounts, false)
 
-      // Try to enhance with historical data if available (only for Bybit accounts)
+      // Try to enhance with cached historical data if available (only for Bybit accounts)
       const enhancedAccountsData = await Promise.all(
         accountsData.map(async (accountData) => {
           try {
             if (accountData.exchange === 'bybit') {
-              const historicalCache = bybitAPI.getCachedHistoricalData(accountData.id)
+              console.log(`🔍 Checking cache for ${accountData.name} (ID: ${accountData.id})`)
+              // Use async version to ensure cache is loaded from persistent storage
+              const historicalCache = await bybitAPI.getCachedHistoricalDataAsync(accountData.id)
+              console.log(`📦 Cache result for ${accountData.name}:`, historicalCache ? {
+                isComplete: historicalCache.isComplete,
+                tradesCount: historicalCache.trades?.length || 0,
+                closedPnLCount: historicalCache.closedPnL?.length || 0
+              } : 'NULL/UNDEFINED')
+
               if (historicalCache && historicalCache.isComplete) {
                 console.log(`📚 Using cached historical data for ${accountData.name}: ${historicalCache.closedPnL.length} closed P&L, ${historicalCache.trades.length} trades`)
 
@@ -269,6 +314,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                   trades: historicalCache.trades.map(trade => ({ ...trade, exchange: 'bybit' as const })),
                   lastUpdated: Math.max(accountData.lastUpdated, historicalCache.lastUpdated)
                 }
+              } else {
+                console.log(`⚠️ Cache not usable for ${accountData.name}: ${!historicalCache ? 'cache is null' : 'isComplete=false'}`)
               }
             }
           } catch (error) {
@@ -283,10 +330,98 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // Add current equity snapshot after successful data refresh
       get().addEquitySnapshot()
+
+      // Background load: Fetch fresh historical data for non-Bybit exchanges
+      // Bybit data is already loaded from cache above, so this only updates non-Bybit accounts
+      console.log('🔄 Triggering background fetch of historical data...')
+      // Run immediately without setTimeout since cached data is already loaded
+      get().refreshHistoricalDataInBackground().catch(err => {
+        console.error('Background refresh failed:', err)
+      })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to refresh data' })
     } finally {
       set({ isLoading: false })
+    }
+  },
+
+  refreshHistoricalDataInBackground: async () => {
+    const { accounts, accountsData } = get()
+
+    if (accounts.length === 0) return
+
+    try {
+      console.log('📊 Background: Checking for historical data needs...')
+      set({ isLoadingBackground: true, backgroundLoadingMessage: 'Loading historical data...' })
+
+      let hasUpdates = false
+
+      // Step 1: Check for Bybit accounts with cached data
+      const bybitAccounts = accounts.filter(acc => acc.exchange === 'bybit')
+      for (const account of bybitAccounts) {
+        // Use async version to properly load from persistent storage
+        const historicalCache = await bybitAPI.getCachedHistoricalDataAsync(account.id)
+        if (historicalCache && historicalCache.isComplete) {
+          console.log(`📚 Loading cached Bybit data for ${account.name}: ${historicalCache.closedPnL.length} P&L records`)
+
+          // Update accountsData with cached data
+          const updated = accountsData.map(acc => {
+            if (acc.id === account.id) {
+              hasUpdates = true
+              return {
+                ...acc,
+                closedPnL: historicalCache.closedPnL.map(pnl => ({ ...pnl, exchange: 'bybit' as const })),
+                trades: historicalCache.trades.map(trade => ({ ...trade, exchange: 'bybit' as const })),
+                lastUpdated: Date.now()
+              }
+            }
+            return acc
+          })
+
+          set({ accountsData: updated })
+        } else {
+          console.log(`⏭️ No cached data for Bybit account ${account.name}: use "Load 6-Month History" button`)
+        }
+      }
+
+      // Step 2: Fetch for non-Bybit exchanges (BloFin, etc)
+      const accountsNeedingFetch = accounts.filter(account => account.exchange !== 'bybit')
+
+      if (accountsNeedingFetch.length > 0) {
+        console.log(`📊 Fetching historical data for ${accountsNeedingFetch.length} non-Bybit account(s)...`)
+        set({ backgroundLoadingMessage: `Loading historical data for ${accountsNeedingFetch.length} account(s)...` })
+
+        // Fetch full data with history in the background (only for non-Bybit exchanges)
+        const historicalAccountsData = await exchangeFactory.fetchAllAccountsData(accountsNeedingFetch, true)
+
+        // Merge the historical data (trades, closedPnL) with existing balance/positions
+        const currentAccountsData = get().accountsData
+        const mergedAccountsData = currentAccountsData.map((existingData) => {
+          const historicalData = historicalAccountsData.find(d => d.id === existingData.id)
+
+          if (historicalData) {
+            console.log(`✅ Loaded historical data for ${existingData.name}: ${historicalData.trades.length} trades, ${historicalData.closedPnL.length} closed P&L`)
+            hasUpdates = true
+            return {
+              ...existingData,
+              trades: historicalData.trades,
+              closedPnL: historicalData.closedPnL,
+              lastUpdated: Date.now()
+            }
+          }
+
+          return existingData
+        })
+
+        set({ accountsData: mergedAccountsData })
+      }
+
+      set({ isLoadingBackground: false, backgroundLoadingMessage: '' })
+      console.log('✅ Background historical data load complete')
+    } catch (error) {
+      console.error('Failed to load historical data in background:', error)
+      set({ isLoadingBackground: false, backgroundLoadingMessage: '' })
+      // Don't set error state - this is a background operation
     }
   },
 
@@ -612,6 +747,196 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to reorder custom cards' })
     }
+  },
+
+  startHistoricalFetch: async (accountId: string, accountName: string) => {
+    const account = get().accounts.find(acc => acc.id === accountId)
+    if (!account) return
+
+    set({
+      historicalFetchProgress: {
+        accountId,
+        accountName,
+        status: 'fetching',
+        progress: 0,
+        message: 'Initializing...',
+      }
+    })
+
+    try {
+      let result: UnifiedAccountData | null = null
+      let unsubscribe: (() => void) | undefined
+
+      // Use exchange-specific method if available (Bybit has progress tracking)
+      if (account.exchange === 'bybit') {
+        // Set up progress callback for Bybit
+        unsubscribe = bybitAPI.onHistoricalProgress((progress) => {
+          if (progress.accountId === accountId) {
+            const percentage = Math.round((progress.currentChunk / progress.totalChunks) * 100)
+            const message = `Fetching data... ${progress.recordsRetrieved} records (chunk ${progress.currentChunk}/${progress.totalChunks})`
+
+            // Update global progress bar
+            set({
+              historicalFetchProgress: {
+                accountId,
+                accountName,
+                status: 'fetching',
+                progress: percentage,
+                message,
+              }
+            })
+
+            // Update individual account progress if it exists in the batch
+            const accountProgress = get().accountFetchProgress.find(acc => acc.id === accountId)
+            if (accountProgress) {
+              get().updateAccountFetchProgress(accountId, {
+                progress: percentage,
+                message,
+              })
+            }
+          }
+        })
+
+        // Fetch historical data with Bybit-specific method
+        result = await bybitAPI.fetchCompleteHistoricalData(account, true)
+        unsubscribe?.()
+      } else {
+        // For all other exchanges, use standard fetchAccountData with history
+        const api = exchangeFactory.createAPI(account.exchange)
+
+        // Update progress manually for non-Bybit exchanges
+        set({
+          historicalFetchProgress: {
+            accountId,
+            accountName,
+            status: 'fetching',
+            progress: 50,
+            message: 'Fetching historical data...',
+          }
+        })
+
+        result = await api.fetchAccountData(account, true)
+      }
+
+      // Calculate total records
+      const totalRecords = (result?.closedPnL?.length || 0) + (result?.trades?.length || 0)
+
+      // Complete
+      get().completeHistoricalFetch(totalRecords)
+
+      // Refresh dashboard data
+      await get().refreshData()
+    } catch (error) {
+      get().failHistoricalFetch(error instanceof Error ? error.message : 'Unknown error')
+    }
+  },
+
+  updateHistoricalFetchProgress: (progress: number, message: string) => {
+    set((state) => ({
+      historicalFetchProgress: {
+        ...state.historicalFetchProgress,
+        progress,
+        message,
+      }
+    }))
+  },
+
+  completeHistoricalFetch: (totalRecords: number) => {
+    set((state) => ({
+      historicalFetchProgress: {
+        ...state.historicalFetchProgress,
+        status: 'complete',
+        progress: 100,
+        message: `Complete! Loaded ${totalRecords.toLocaleString()} records`,
+        totalRecords,
+      }
+    }))
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+      set({
+        historicalFetchProgress: {
+          accountId: null,
+          accountName: '',
+          status: 'idle',
+          progress: 0,
+          message: '',
+        }
+      })
+    }, 3000)
+  },
+
+  failHistoricalFetch: (error: string) => {
+    set((state) => ({
+      historicalFetchProgress: {
+        ...state.historicalFetchProgress,
+        status: 'idle',
+        progress: 0,
+        message: '',
+        error,
+      }
+    }))
+  },
+
+  setShowFetchModal: (show: boolean) => {
+    set({ showFetchModal: show })
+  },
+
+  updateAccountFetchProgress: (accountId: string, updates: Partial<AccountFetchProgress>) => {
+    set((state) => ({
+      accountFetchProgress: state.accountFetchProgress.map(acc =>
+        acc.id === accountId ? { ...acc, ...updates } : acc
+      )
+    }))
+  },
+
+  startBatchHistoricalFetch: async (accountIds: string[]) => {
+    const accounts = get().accounts.filter(acc => accountIds.includes(acc.id))
+
+    // Initialize progress for all accounts
+    set({
+      accountFetchProgress: accounts.map(acc => ({
+        id: acc.id,
+        name: acc.name,
+        exchange: acc.exchange,
+        status: 'pending' as const,
+        progress: 0,
+      })),
+      showFetchModal: true,
+    })
+
+    // Fetch each account sequentially
+    for (const account of accounts) {
+      try {
+        // Update status to fetching
+        get().updateAccountFetchProgress(account.id, { status: 'fetching', progress: 0 })
+
+        // Start the fetch
+        await get().startHistoricalFetch(account.id, account.name)
+
+        // Mark as complete
+        const result = get().accountsData.find(acc => acc.id === account.id)
+        const totalRecords = (result?.closedPnL?.length || 0) + (result?.trades?.length || 0)
+
+        get().updateAccountFetchProgress(account.id, {
+          status: 'complete',
+          progress: 100,
+          totalRecords,
+        })
+      } catch (error) {
+        // Mark as error
+        get().updateAccountFetchProgress(account.id, {
+          status: 'error',
+          progress: 0,
+          message: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    }
+
+    // Auto-dismiss modal after all complete (with 3 second delay)
+    setTimeout(() => {
+      set({ showFetchModal: false, accountFetchProgress: [] })
+    }, 3000)
   },
 }))
 

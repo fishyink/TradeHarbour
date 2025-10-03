@@ -8,40 +8,67 @@ class ExchangeFactory {
     return ccxtAdapter
   }
 
-  async fetchAccountData(account: ExchangeAccount): Promise<UnifiedAccountData> {
+  async fetchAccountData(account: ExchangeAccount, includeHistory: boolean = false): Promise<UnifiedAccountData> {
     const api = this.getAPI(account.exchange)
-    return api.fetchAccountData(account)
+    return api.fetchAccountData(account, includeHistory)
   }
 
-  async fetchAllAccountsData(accounts: ExchangeAccount[]): Promise<UnifiedAccountData[]> {
+  async fetchAllAccountsData(accounts: ExchangeAccount[], includeHistory: boolean = false): Promise<UnifiedAccountData[]> {
     if (accounts.length === 0) return []
 
-    const requests = accounts.map(account => this.fetchAccountData(account))
-
-    try {
-      return await Promise.allSettled(requests).then(results =>
-        results.map((result, index) => {
-          if (result.status === 'fulfilled') {
-            return result.value
-          } else {
+    // Fast path: Fetch all accounts in parallel for initial load (no delays needed)
+    if (!includeHistory) {
+      return Promise.all(
+        accounts.map(async (account) => {
+          try {
+            return await this.fetchAccountData(account, false)
+          } catch (error) {
             return {
-              id: accounts[index].id,
-              name: accounts[index].name,
-              exchange: accounts[index].exchange,
+              id: account.id,
+              name: account.name,
+              exchange: account.exchange,
               balance: null,
               positions: [],
               trades: [],
               closedPnL: [],
               lastUpdated: Date.now(),
-              error: result.reason?.message || 'Request failed',
+              error: error instanceof Error ? error.message : 'Request failed',
             }
           }
         })
       )
-    } catch (error) {
-      console.error('Error fetching all accounts data:', error)
-      throw error
     }
+
+    // Slow path: Fetch accounts sequentially with delays to avoid rate limiting
+    const results: UnifiedAccountData[] = []
+
+    for (let i = 0; i < accounts.length; i++) {
+      const account = accounts[i]
+
+      try {
+        const data = await this.fetchAccountData(account, true)
+        results.push(data)
+      } catch (error) {
+        results.push({
+          id: account.id,
+          name: account.name,
+          exchange: account.exchange,
+          balance: null,
+          positions: [],
+          trades: [],
+          closedPnL: [],
+          lastUpdated: Date.now(),
+          error: error instanceof Error ? error.message : 'Request failed',
+        })
+      }
+
+      // Add delay between accounts (except after last account)
+      if (i < accounts.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    }
+
+    return results
   }
 
   getSupportedExchanges(): ExchangeType[] {

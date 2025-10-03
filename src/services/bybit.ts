@@ -676,6 +676,14 @@ class BybitAPI {
     return result
   }
 
+  // Smart loading: 7 days from API + cached data + fill gaps
+  async fetchSmartHistoricalData(account: BybitAccount) {
+    const result = await this.historicalService.fetchSmartHistory(account, this)
+    // Populate sync cache for immediate access
+    this.syncCache.set(account.id, result)
+    return result
+  }
+
   async updateAccountHistoricalData(account: BybitAccount) {
     const result = await this.historicalService.updateAccountData(account, this)
     if (result) {
@@ -711,13 +719,13 @@ class BybitAPI {
 
   getCachedHistoricalData(accountId: string) {
     try {
-      // First check sync cache
+      // Check sync cache for immediate return
       const cachedData = this.syncCache.get(accountId)
       if (cachedData) {
         return cachedData
       }
 
-      // If not in sync cache, try to populate it from persistent storage asynchronously
+      // If not in sync cache, return null but warm up cache in background
       // This is a fire-and-forget operation to warm up the cache for next access
       this.historicalService.getCachedData(accountId).then(data => {
         if (data) {
@@ -729,6 +737,29 @@ class BybitAPI {
 
       return null
     } catch (error) {
+      return null
+    }
+  }
+
+  // NEW: Async version that waits for cache load - use this for initial data loading
+  async getCachedHistoricalDataAsync(accountId: string) {
+    try {
+      // First check sync cache for immediate return
+      const cachedData = this.syncCache.get(accountId)
+      if (cachedData) {
+        return cachedData
+      }
+
+      // Load from persistent storage and populate sync cache
+      const data = await this.historicalService.getCachedData(accountId)
+      if (data) {
+        this.syncCache.set(accountId, data)
+        return data
+      }
+
+      return null
+    } catch (error) {
+      console.warn('Failed to load cached data:', error)
       return null
     }
   }

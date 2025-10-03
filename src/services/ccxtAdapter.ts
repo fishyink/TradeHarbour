@@ -26,8 +26,8 @@ class CCXTAdapter implements ExchangeAPI {
     return await window.electronAPI.ccxt.fetchClosedPnL(account, limit)
   }
 
-  async fetchAccountData(account: ExchangeAccount): Promise<UnifiedAccountData> {
-    return await window.electronAPI.ccxt.fetchAccountData(account)
+  async fetchAccountData(account: ExchangeAccount, includeHistory: boolean = false): Promise<UnifiedAccountData> {
+    return await window.electronAPI.ccxt.fetchAccountData(account, includeHistory)
   }
 }
 

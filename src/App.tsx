@@ -15,6 +15,8 @@ import { TradeHistory } from './components/TradeHistory'
 import { CustomCards } from './components/CustomCards'
 import { CustomDashboard } from './components/CustomDashboard'
 import { AssetsDashboard } from './components/AssetsDashboard'
+import { GlobalProgressBar } from './components/GlobalProgressBar'
+import { HistoricalFetchModal } from './components/HistoricalFetchModal'
 import { useAutoRefresh } from './hooks/useAutoRefresh'
 import { useState } from 'react'
 
@@ -71,6 +73,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Global Progress Bar - Shows at top during historical data fetch */}
+      <GlobalProgressBar />
+
+      {/* Historical Fetch Modal - Shows detailed progress for batch fetches */}
+      <HistoricalFetchModal />
+
       <Header currentPage={currentPage} onPageChange={(page: string) => setCurrentPage(page as Page)} />
 
       <div className="flex">

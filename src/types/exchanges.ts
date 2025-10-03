@@ -8,6 +8,7 @@ export interface ExchangeAccount {
   exchange: ExchangeType
   apiKey: string
   apiSecret: string
+  accessPassphrase?: string  // Optional passphrase (required for some exchanges like BloFin, OKX)
   isTestnet: boolean
   createdAt: number
 }
@@ -110,5 +111,5 @@ export interface ExchangeAPI {
   getPositions(account: ExchangeAccount): Promise<UnifiedPosition[]>
   getTrades(account: ExchangeAccount, limit?: number): Promise<UnifiedTrade[]>
   getClosedPnL(account: ExchangeAccount, limit?: number): Promise<UnifiedClosedPnL[]>
-  fetchAccountData(account: ExchangeAccount): Promise<UnifiedAccountData>
+  fetchAccountData(account: ExchangeAccount, includeHistory?: boolean): Promise<UnifiedAccountData>
 }
