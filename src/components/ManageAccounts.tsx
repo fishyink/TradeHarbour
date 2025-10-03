@@ -176,23 +176,25 @@ export const ManageAccounts = () => {
       // If test succeeds, add/update the account
       await addAccount(testAccount)
 
-      // For new Bybit accounts, fetch historical data (7 days fresh + fill gaps)
-      if (!editingAccount && formData.exchange === 'bybit') {
-        console.log('🆕 New Bybit account added, fetching fresh historical data...')
-        try {
-          const { bybitAPI } = await import('../services/bybit')
-          await bybitAPI.fetchCompleteHistoricalData(testAccount as any, true) // forceRefresh = true for new accounts
-          console.log('✅ Historical data fetched for new account')
-        } catch (error) {
-          console.error('Failed to fetch historical data for new account:', error)
-          // Don't throw - account is already added, this is just bonus data
-        }
-      }
-
-      // Close form and reset
+      // Close form and reset FIRST to unblock UI
       setShowAddForm(false)
       setShowEditForm(false)
       resetForm()
+
+      // THEN fetch historical data in the background (non-blocking)
+      if (!editingAccount) {
+        console.log('🆕 New account added, queuing historical data fetch in background...')
+        // Use setTimeout to ensure UI updates first, then start background fetch
+        setTimeout(async () => {
+          try {
+            await startBatchHistoricalFetch([testAccount.id])
+            console.log('✅ Background historical data fetch completed')
+          } catch (error) {
+            console.error('Background historical data fetch failed:', error)
+            // Silent fail - account is already added
+          }
+        }, 100)
+      }
 
     } catch (error) {
       console.error('Failed to add/update account:', error)

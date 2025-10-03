@@ -384,7 +384,7 @@ export const Dashboard = ({ onPageChange }: DashboardProps = {}) => {
         </p>
         <div className="flex justify-center">
           <button
-            onClick={() => onPageChange?.('accounts')}
+            onClick={() => onPageChange?.('manage-accounts')}
             className="btn-primary"
           >
             Add Your First Account
