@@ -8,7 +8,7 @@
 
 A modern, open-source **Electron desktop application** for monitoring multiple cryptocurrency accounts. Now with **103+ exchange support** via CCXT integration. Built with Electron, React, TypeScript, and Tailwind CSS.
 
-![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.6.8--BETA-orange.svg)
+![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.6.9--BETA-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![GitHub](https://img.shields.io/badge/GitHub-fishyink%2Ftradeharbour-black.svg)
 ![Platform](https://img.shields.io/badge/Platform-Desktop%20Only-red.svg)
@@ -16,33 +16,29 @@ A modern, open-source **Electron desktop application** for monitoring multiple c
 
 ---
 
-## 🆕 What's New in v1.6.8 BETA
+## 🆕 What's New in v1.6.9 BETA
 
-### Multi-Exchange Support Improvements
-This release focuses on improving the multi-exchange experience with bug fixes and UX enhancements:
+### Enhanced Account Setup Experience
+This release focuses on improving the API key setup process with interactive, exchange-specific guidance:
 
 - **🌐 Supported Exchanges**: Bybit (fully tested)
 - **⚠️ Beta Exchanges**: Toobit, BloFin (limited testing)
 - **🧪 Experimental**: Binance, Coinbase, Kraken, OKX, and 100+ more
 
 ### New Features & Improvements
-- **Fixed Position Side Display**: Positions now correctly show Long/Short for all CCXT exchanges
-- **Exchange Visibility Filter**: Control which exchanges appear in dropdown (Settings → default: Bybit, BloFin, Toobit)
-- **Background Data Fetch**: Adding accounts no longer blocks the UI - historical data fetches in background with progress bar
-- **Better Status Detection**: Improved account status for non-Bybit exchanges (BloFin, etc.)
-- **Cleaner Positions Table**: Removed "Last Updated" column for simplified view
-- **One-Click Setup**: "Add Your First Account" button now goes directly to Manage Accounts page
-
-### Bug Fixes
-- Fixed position sides showing inverted (all Short when should be Long)
-- Fixed BloFin accounts showing as "Inactive" despite having balance
-- Fixed loading screen appearing on every page navigation
-- Improved timestamp handling across exchanges
+- **Split-Panel Account Setup**: New 50/50 layout with form fields on the left, instructions on the right
+- **Interactive Step Highlighting**: Steps automatically highlight based on which form field is focused
+- **Exchange-Specific Instructions**: Detailed, step-by-step guides for Bybit, BloFin, Toobit, and generic fallback
+- **External Link Support**: API management page links open in your default browser
+- **Updated Setup Guides**:
+  - Bybit: System-generated API keys, UNIFIED TRADING + ASSETS permissions, IP whitelist tips
+  - BloFin: CCXT application name requirement emphasized for proper functionality
+  - Improved security tips and best practices for each exchange
 
 ### ⚠️ Beta Notice
 This is a **beta release** for testing multi-exchange functionality. Bybit remains the only fully supported exchange. Use other exchanges at your own risk and report any issues on Discord.
 
-**Upgrading from v1.6.7?** Your settings, accounts, and trading data will be preserved automatically.
+**Upgrading from v1.6.8?** Your settings, accounts, and trading data will be preserved automatically. Simply extract the new version and copy your `data/` folder.
 
 ---
 
