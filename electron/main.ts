@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, dialog, protocol } from 'electron'
+import { app, BrowserWindow, Menu, ipcMain, dialog, protocol, shell } from 'electron'
 import Store from 'electron-store'
 
 // Fix EPIPE errors in packaged app by safely wrapping console methods
@@ -468,6 +468,17 @@ ipcMain.handle('fs-file-exists', async (_, filePath: string) => {
     return fs.existsSync(filePath)
   } catch (error) {
     console.error(`Error checking file existence ${filePath}:`, error)
+    return false
+  }
+})
+
+// Shell operations
+ipcMain.handle('shell-open-external', async (_, url: string) => {
+  try {
+    await shell.openExternal(url)
+    return true
+  } catch (error) {
+    console.error(`Error opening external URL ${url}:`, error)
     return false
   }
 })

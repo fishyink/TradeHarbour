@@ -19,12 +19,14 @@ export const ManageAccounts = () => {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitStatus, setSubmitStatus] = useState<string>('')
   const [updatingAccounts, setUpdatingAccounts] = useState<Set<string>>(new Set())
   const [updateProgress, setUpdateProgress] = useState<Map<string, { status: string; progress: number; phase: string; details?: string }>>(new Map())
   const [showBetaWarning, setShowBetaWarning] = useState(false)
   const [selectedBetaExchange, setSelectedBetaExchange] = useState<string | null>(null)
   const [allExchanges, setAllExchanges] = useState<string[]>([])
   const [showFetchInfo, setShowFetchInfo] = useState<string | null>(null)
+  const [focusedField, setFocusedField] = useState<string | null>(null)
 
   // Auto-clean stale account data on component mount
   useEffect(() => {
@@ -119,6 +121,85 @@ export const ManageAccounts = () => {
     })
     setSubmitError(null)
     setEditingAccount(null)
+    setFocusedField(null)
+  }
+
+  // Exchange-specific instructions
+  const getExchangeInstructions = (exchange: string) => {
+    const instructions: Record<string, any> = {
+      bybit: {
+        title: 'Bybit API Setup',
+        steps: [
+          { id: 'name,exchange', title: 'Step 1: Create New Key', content: 'Click "Create New Key" button (orange button, top right) and select "System-generated API Keys"' },
+          { id: 'none', title: 'Step 2: Configure API Key', content: 'Enter an API Key Name. Select Read-Only permissions only (never enable trading or withdrawal).\n\nOptionally add your fixed IP address to prevent the API key from expiring after 90 days.' },
+          { id: 'none', title: 'Step 3: Select Permissions', content: 'Select UNIFIED TRADING and ASSETS checkboxes, then click Submit' },
+          { id: 'none', title: 'Step 4: Complete Authentication', content: 'Follow Bybit\'s authentication steps (email/2FA verification)' },
+          { id: 'apiKey,apiSecret,isTestnet', title: 'Step 5: Copy Credentials', content: 'Copy the API Key and Secret, paste them into Trade Harbour, select Mainnet/Testnet, then click Add Account.\n\nNote: The secret is only shown once!' }
+        ],
+        securityTips: [
+          'Always use Read-Only API keys',
+          'Never grant trading or withdrawal permissions',
+          'Add IP whitelist for enhanced security (optional)',
+          'The API Secret is only shown once - copy it immediately',
+          'Select Mainnet for live accounts, Testnet for demo'
+        ],
+        apiLink: 'https://www.bybit.com/app/user/api-management'
+      },
+      blofin: {
+        title: 'BloFin API Setup',
+        steps: [
+          { id: 'name,exchange', title: 'Step 1: Open API Management', content: 'Visit the BloFin API Management page and click the orange "Create API Key" button (top right)' },
+          { id: 'none', title: 'Step 2: Select Application Type', content: '⚠️ IMPORTANT: Choose "Connect to Third Party Applications" and set Application Name to "CCXT". This is critical for proper API functionality.' },
+          { id: 'apiKey', title: 'Step 3: Create & Copy API Key', content: 'Enter your desired API Key Name, then copy the generated API Key and paste it into Trade Harbour' },
+          { id: 'accessPassphrase', title: 'Step 4: Set Passphrase', content: 'Create a passphrase (you choose this), copy it to Trade Harbour, give Read permissions only, then click Next' },
+          { id: 'apiSecret', title: 'Step 5: Complete & Copy Secret', content: 'Follow BloFin\'s authentication steps (email/2FA), then copy the API Secret to Trade Harbour and click Add Account' }
+        ],
+        securityTips: [
+          'BloFin is in BETA - use at your own risk',
+          'Application Name MUST be "CCXT" (case-sensitive)',
+          'Only enable Read permissions - never trading or withdrawal',
+          'Store your passphrase securely - you created it yourself',
+          'Test with small accounts first'
+        ],
+        apiLink: 'https://blofin.com/account/apis'
+      },
+      toobit: {
+        title: 'Toobit API Setup',
+        steps: [
+          { id: 'exchange', title: 'Step 1: Login to Toobit', content: 'Visit Toobit.com and login to your account' },
+          { id: 'name', title: 'Step 2: Navigate to API Management', content: 'Go to Account → API Management or Settings → API' },
+          { id: 'apiKey', title: 'Step 3: Create API Key', content: 'Create a new API key with read-only permissions. Do not enable spot trading or withdrawal.' },
+          { id: 'apiSecret', title: 'Step 4: Copy API Credentials', content: 'Copy both API Key and Secret. The secret is only shown once during creation.' }
+        ],
+        securityTips: [
+          'Toobit is in BETA - limited support',
+          'Use read-only keys only',
+          'Report any issues on Discord',
+          'Data accuracy not guaranteed'
+        ],
+        apiLink: 'https://www.toobit.com/en-US/user/api'
+      }
+    }
+
+    // Generic fallback for all other exchanges
+    const genericInstructions = {
+      title: `${exchange.charAt(0).toUpperCase() + exchange.slice(1)} API Setup`,
+      steps: [
+        { id: 'exchange', title: 'Step 1: Login to Exchange', content: `Visit ${exchange.charAt(0).toUpperCase() + exchange.slice(1)} and login to your account` },
+        { id: 'name', title: 'Step 2: Find API Settings', content: 'Navigate to Account Settings or Profile → API Management' },
+        { id: 'apiKey', title: 'Step 3: Create API Key', content: 'Create a new API key with read-only or view-only permissions. Never enable trading.' },
+        { id: 'apiSecret', title: 'Step 4: Copy Credentials', content: 'Copy the API Key and Secret. Some exchanges also require a passphrase.' },
+        { id: 'accessPassphrase', title: 'Step 5: Passphrase (if required)', content: 'If your exchange requires a passphrase, enter it below. Check your exchange documentation.' }
+      ],
+      securityTips: [
+        'This exchange is EXPERIMENTAL - use at your own risk',
+        'Always use read-only API keys',
+        'Test with small amounts first',
+        'Check exchange documentation for specific API setup steps'
+      ]
+    }
+
+    return instructions[exchange] || genericInstructions
   }
 
   const handleAdd = () => {
@@ -148,6 +229,7 @@ export const ManageAccounts = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitError(null)
+    setSubmitStatus('')
     setIsSubmitting(true)
 
     try {
@@ -171,7 +253,9 @@ export const ManageAccounts = () => {
       }
 
       // Test connection
+      setSubmitStatus('Verifying API credentials...')
       await api.getAccountBalance(testAccount)
+      setSubmitStatus('Saving account...')
 
       // If test succeeds, add/update the account
       await addAccount(testAccount)
@@ -179,6 +263,8 @@ export const ManageAccounts = () => {
       // Close form and reset FIRST to unblock UI
       setShowAddForm(false)
       setShowEditForm(false)
+      setIsSubmitting(false)
+      setSubmitStatus('')
       resetForm()
 
       // THEN fetch historical data in the background (non-blocking)
@@ -199,8 +285,8 @@ export const ManageAccounts = () => {
     } catch (error) {
       console.error('Failed to add/update account:', error)
       setSubmitError(error instanceof Error ? error.message : 'Failed to connect to exchange')
-    } finally {
       setIsSubmitting(false)
+      setSubmitStatus('')
     }
   }
 
@@ -331,7 +417,7 @@ export const ManageAccounts = () => {
           </div>
         )}
 
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               {showEditForm ? 'Edit Account' : 'Add New Account'}
@@ -341,8 +427,11 @@ export const ManageAccounts = () => {
             </p>
           </div>
 
-        <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+          <div className="grid grid-cols-2 gap-0">
+            {/* Left Column - Form Fields */}
+            <div className="p-6 border-r border-gray-200 dark:border-gray-700">
+              <form onSubmit={handleSubmit} className="space-y-6">
             {submitError && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                 <div className="text-sm text-red-700 dark:text-red-300">{submitError}</div>
@@ -357,6 +446,8 @@ export const ManageAccounts = () => {
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
                 className="input"
                 placeholder="My Trading Account"
                 required
@@ -370,6 +461,8 @@ export const ManageAccounts = () => {
               <select
                 value={formData.exchange}
                 onChange={(e) => handleExchangeChange(e.target.value)}
+                onFocus={() => setFocusedField('exchange')}
+                onBlur={() => setFocusedField(null)}
                 className="input"
                 required
               >
@@ -405,6 +498,8 @@ export const ManageAccounts = () => {
                 type="text"
                 value={formData.apiKey}
                 onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                onFocus={() => setFocusedField('apiKey')}
+                onBlur={() => setFocusedField(null)}
                 className="input font-mono"
                 placeholder="Enter your API key"
                 required
@@ -419,6 +514,8 @@ export const ManageAccounts = () => {
                 type="password"
                 value={formData.apiSecret}
                 onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
+                onFocus={() => setFocusedField('apiSecret')}
+                onBlur={() => setFocusedField(null)}
                 className="input font-mono"
                 placeholder="Enter your API secret"
                 required
@@ -435,6 +532,8 @@ export const ManageAccounts = () => {
                   type="password"
                   value={formData.accessPassphrase}
                   onChange={(e) => setFormData({ ...formData, accessPassphrase: e.target.value })}
+                  onFocus={() => setFocusedField('accessPassphrase')}
+                  onBlur={() => setFocusedField(null)}
                   className="input font-mono"
                   placeholder="Enter your API passphrase"
                   required
@@ -451,22 +550,13 @@ export const ManageAccounts = () => {
                 id="isTestnet"
                 checked={formData.isTestnet}
                 onChange={(e) => setFormData({ ...formData, isTestnet: e.target.checked })}
+                onFocus={() => setFocusedField('isTestnet')}
+                onBlur={() => setFocusedField(null)}
                 className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
               <label htmlFor="isTestnet" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                 Testnet Account
               </label>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-start">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Security Note:</strong> Your API keys are encrypted and stored locally. Never share your API keys or secrets with anyone.
-                </div>
-              </div>
             </div>
 
             <div className="flex justify-end space-x-3">
@@ -482,10 +572,129 @@ export const ManageAccounts = () => {
                 disabled={isSubmitting}
                 className="btn-primary"
               >
-                {isSubmitting ? (showEditForm ? 'Updating...' : 'Adding...') : (showEditForm ? 'Update Account' : 'Add Account')}
+                {isSubmitting ? (submitStatus || (showEditForm ? 'Updating...' : 'Adding...')) : (showEditForm ? 'Update Account' : 'Add Account')}
               </button>
             </div>
           </form>
+            </div>
+
+            {/* Right Column - Instructions Panel */}
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/50 overflow-y-auto max-h-[600px]">
+              {(() => {
+                const instructions = getExchangeInstructions(formData.exchange)
+                return (
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        📘 {instructions.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Follow these steps to set up your API keys
+                      </p>
+                      {/* Subtle API Link at Top */}
+                      {instructions.apiLink && (
+                        <button
+                          onClick={() => window.electronAPI.shell.openExternal(instructions.apiLink!)}
+                          className="inline-flex items-center space-x-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline cursor-pointer mt-1"
+                        >
+                          <span>🔗 {formData.exchange.charAt(0).toUpperCase() + formData.exchange.slice(1)} API Page</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Steps */}
+                    <div className="space-y-3">
+                      {instructions.steps.map((step: any, index: number) => {
+                        // Support multiple field IDs separated by comma
+                        const stepIds = step.id.split(',')
+                        const isActive = focusedField && stepIds.includes(focusedField)
+                        const isFirstStep = index === 0
+                        return (
+                          <div
+                            key={step.id}
+                            className={`p-4 rounded-lg border-l-4 transition-all duration-200 ${
+                              isActive
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
+                                : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800'
+                            }`}
+                          >
+                            <h4 className={`text-sm font-semibold mb-1 ${
+                              isActive ? 'text-blue-700 dark:text-blue-400' : 'text-gray-900 dark:text-white'
+                            }`}>
+                              {step.title}
+                            </h4>
+                            <p className={`text-sm whitespace-pre-line ${
+                              isActive ? 'text-blue-600 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {step.content}
+                            </p>
+                            {isFirstStep && instructions.apiLink && (
+                              <button
+                                onClick={() => window.electronAPI.shell.openExternal(instructions.apiLink!)}
+                                className="mt-2 inline-flex items-center space-x-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
+                              >
+                                <span>🔗 Open Page</span>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* API Link - Show after steps */}
+                    {instructions.apiLink && (
+                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button
+                          onClick={() => window.electronAPI.shell.openExternal(instructions.apiLink!)}
+                          className="inline-flex items-center space-x-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer"
+                        >
+                          <span>🔗 Open API Management Page</span>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Security Tips */}
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                        🔒 Security Tips
+                      </h4>
+                      <ul className="space-y-2">
+                        {instructions.securityTips.map((tip: string, index: number) => (
+                          <li key={index} className="flex items-start space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                            <svg className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Local Storage Notice */}
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <div className="flex items-start space-x-2">
+                          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs text-blue-800 dark:text-blue-200">
+                            <strong>Your data stays local:</strong> API keys are encrypted with AES-256 and stored only on your computer. Trade Harbour never sends your credentials anywhere.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
         </div>
         </div>
       </>
