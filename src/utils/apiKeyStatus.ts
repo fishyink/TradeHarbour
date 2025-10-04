@@ -1,6 +1,4 @@
 import { ExchangeAccount } from '../types/exchanges'
-import { bybitAPI } from '../services/bybit'
-import { convertToBybitAccount } from '../services/configManager'
 import { debugLogger } from './debugLogger'
 
 export interface ApiKeyStatus {
@@ -48,21 +46,16 @@ class ApiKeyStatusChecker {
     }
 
     try {
-      if (account.exchange === 'bybit') {
-        const bybitAccount = convertToBybitAccount(account)
+      // Use IPC to call the main process which has access to secure credentials
+      // The main process will attempt to fetch balance as a validation test
+      const result = await window.electronAPI.api.validateApiKey(account)
 
-        // Test API key with a lightweight endpoint
-        const response = await bybitAPI.getAccountBalance(bybitAccount)
-
-        if (response) {
-          status.isValid = true
-          status.hasPermissions = true
-          debugLogger.info('api', `API key valid for account: ${account.name}`)
-        }
-
+      if (result.success) {
+        status.isValid = true
+        status.hasPermissions = true
+        debugLogger.info('api', `API key valid for account: ${account.name}`)
       } else {
-        // Future: Add other exchange support
-        status.errorMessage = 'Exchange not supported for API key validation'
+        status.errorMessage = result.error || 'Validation failed'
       }
 
     } catch (error) {

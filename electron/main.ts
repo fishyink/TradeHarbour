@@ -1,36 +1,46 @@
 import { app, BrowserWindow, Menu, ipcMain, dialog, protocol, shell } from 'electron'
 import Store from 'electron-store'
+import log from 'electron-log'
+import * as path from 'path'
+import * as fs from 'fs'
+import { ccxtAdapter } from './ccxtAdapter'
+import type { ExchangeAccount } from '../src/types/exchanges'
 
-// Fix EPIPE errors in packaged app by safely wrapping console methods
-if (app.isPackaged) {
-  const safeConsole = (method: 'log' | 'warn' | 'error') => {
-    const original = console[method]
-    console[method] = (...args: any[]) => {
-      try {
-        original.apply(console, args)
-      } catch (error) {
-        // Silently ignore EPIPE errors in packaged app
-      }
-    }
-  }
+// Configure electron-log
+log.transports.file.level = 'debug'
+log.transports.console.level = 'debug'
+log.transports.file.maxSize = 10 * 1024 * 1024 // 10MB max file size
 
-  safeConsole('log')
-  safeConsole('warn')
-  safeConsole('error')
-}
+// Set log file location to data directory (will be set after dataDir is determined)
+// This will be updated below once we know the data directory path
+
+// Override console methods to use electron-log
+console.log = log.log
+console.info = log.info
+console.warn = log.warn
+console.error = log.error
+console.debug = log.debug
+
+log.info('═══════════════════════════════════════════════════════════')
+log.info('🚀 Trade Harbour Starting...')
+log.info('═══════════════════════════════════════════════════════════')
+log.info(`📦 App Version: ${app.getVersion()}`)
+log.info(`🔧 Electron Version: ${process.versions.electron}`)
+log.info(`⚙️  Node Version: ${process.versions.node}`)
+log.info(`💻 Platform: ${process.platform}`)
+log.info(`🏗️  Architecture: ${process.arch}`)
+log.info(`📂 App Path: ${app.getAppPath()}`)
+log.info(`🔐 Is Packaged: ${app.isPackaged}`)
 
 // Conditional import of electron-updater for better error handling
 let autoUpdater: any = null
 try {
   autoUpdater = require('electron-updater').autoUpdater
+  log.info('✅ electron-updater loaded successfully')
 } catch (error) {
   const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-  console.warn('electron-updater not available:', errorMessage)
+  log.warn('⚠️ electron-updater not available:', errorMessage)
 }
-import * as path from 'path'
-import * as fs from 'fs'
-import { ccxtAdapter } from './ccxtAdapter'
-import type { ExchangeAccount } from '../src/types/exchanges'
 
 const isDev = !app.isPackaged
 
@@ -46,10 +56,24 @@ try {
     dataDir = path.join(__dirname, '../data')
   }
 
+  log.info(`📁 Data directory path: ${dataDir}`)
+
   // Ensure the data directory exists
   if (!fs.existsSync(dataDir)) {
+    log.info('📂 Creating data directory...')
     fs.mkdirSync(dataDir, { recursive: true })
+    log.info('✅ Data directory created')
+  } else {
+    log.info('✅ Data directory exists')
   }
+
+  // Set log file location to data directory
+  const logPath = path.join(dataDir, 'logs')
+  if (!fs.existsSync(logPath)) {
+    fs.mkdirSync(logPath, { recursive: true })
+  }
+  log.transports.file.resolvePathFn = () => path.join(logPath, 'tradeharbour.log')
+  log.info(`📝 Log file location: ${path.join(logPath, 'tradeharbour.log')}`)
 
   // Create a README file in the data folder so users know what it is
   const readmePath = path.join(dataDir, 'README-USER-DATA.txt')
@@ -89,7 +113,7 @@ Generated: ${new Date().toISOString()}
     cwd: dataDir,
   })
 
-  console.log('Portable data directory initialized:', dataDir)
+  log.info('✅ Portable data directory initialized:', dataDir)
 } catch (error) {
   console.error('Failed to initialize data directory:', error)
   // Fallback to local data folder
@@ -337,6 +361,19 @@ ipcMain.handle('show-open-dialog', async (_, options) => {
   return { canceled: true }
 })
 
+// Validate API key by attempting to fetch balance
+ipcMain.handle('validate-api-key', async (_, account: ExchangeAccount) => {
+  try {
+    // Use CCXT adapter to test the API connection by fetching balance
+    await ccxtAdapter.getAccountBalance(account)
+
+    return { success: true }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return { success: false, error: errorMessage }
+  }
+})
+
 ipcMain.handle('get-user-data-path', () => {
   return dataDir
 })
@@ -380,7 +417,7 @@ ipcMain.handle('import-user-data', async (_, filePath: string) => {
 
 
 ipcMain.handle('get-app-version', () => {
-  return '1.5.5' // Our app version, not Electron version
+  return app.getVersion() // Get version from package.json
 })
 
 // File system operations for data manager
@@ -479,8 +516,29 @@ ipcMain.handle('shell-open-external', async (_, url: string) => {
     await shell.openExternal(url)
     return true
   } catch (error) {
-    console.error(`Error opening external URL ${url}:`, error)
+    log.error(`Error opening external URL ${url}:`, error)
     return false
+  }
+})
+
+// Logging operations
+ipcMain.handle('get-log-file-path', () => {
+  return log.transports.file.getFile().path
+})
+
+ipcMain.handle('open-log-file', () => {
+  const logPath = log.transports.file.getFile().path
+  shell.showItemInFolder(logPath)
+})
+
+ipcMain.handle('clear-logs', () => {
+  try {
+    log.transports.file.getFile().clear()
+    log.info('🧹 Logs cleared by user')
+    return { success: true }
+  } catch (error) {
+    log.error('Failed to clear logs:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 })
 

@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { ExchangeAccount, ExchangeType } from '../types/exchanges'
 import { exchangeFactory } from '../services/exchangeFactory'
 import { SUPPORTED_EXCHANGES, PRIORITY_BETA_EXCHANGES, isSupportedExchange } from '../constants/exchanges'
+import { apiKeyStatusChecker, AccountApiStatus } from '../utils/apiKeyStatus'
 
 export const ManageAccounts = () => {
   const { accounts, addAccount, removeAccount, clearStaleAccountData, refreshAccountData, accountsData, settings, updateSettings, startBatchHistoricalFetch } = useAppStore()
@@ -27,6 +28,9 @@ export const ManageAccounts = () => {
   const [allExchanges, setAllExchanges] = useState<string[]>([])
   const [showFetchInfo, setShowFetchInfo] = useState<string | null>(null)
   const [focusedField, setFocusedField] = useState<string | null>(null)
+  const [showApiCheckModal, setShowApiCheckModal] = useState(false)
+  const [checkingApiStatus, setCheckingApiStatus] = useState(false)
+  const [apiStatuses, setApiStatuses] = useState<AccountApiStatus[]>([])
 
   // Auto-clean stale account data on component mount
   useEffect(() => {
@@ -369,6 +373,21 @@ export const ManageAccounts = () => {
     })
   }
 
+  const handleCheckApiKeys = async () => {
+    if (accounts.length === 0) return
+
+    setShowApiCheckModal(true)
+    setCheckingApiStatus(true)
+    try {
+      const statuses = await apiKeyStatusChecker.checkAllAccountsStatus(accounts)
+      setApiStatuses(statuses)
+    } catch (error) {
+      console.error('Failed to check API key statuses:', error)
+    } finally {
+      setCheckingApiStatus(false)
+    }
+  }
+
   if (showAddForm || showEditForm) {
     return (
       <>
@@ -612,7 +631,7 @@ export const ManageAccounts = () => {
                         const isFirstStep = index === 0
                         return (
                           <div
-                            key={step.id}
+                            key={index}
                             className={`p-4 rounded-lg border-l-4 transition-all duration-200 ${
                               isActive
                                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
@@ -702,17 +721,118 @@ export const ManageAccounts = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="md:flex md:items-center md:justify-between mb-8">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Manage Accounts
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Add, edit, and remove your trading accounts. API keys are encrypted and stored securely.
-          </p>
+    <>
+      {/* API Check Modal */}
+      {showApiCheckModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                API Key Status
+              </h3>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {checkingApiStatus ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="ml-3 text-gray-700 dark:text-gray-300">Checking API keys...</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {apiStatuses.map((accountStatus) => (
+                    <div
+                      key={accountStatus.accountId}
+                      className={`p-4 rounded-lg border-l-4 ${
+                        accountStatus.status.isValid
+                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                          : 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div
+                            className={`w-3 h-3 rounded-full ${
+                              accountStatus.status.isValid ? 'bg-green-500' : 'bg-red-500'
+                            }`}
+                          ></div>
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {accountStatus.accountName}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 capitalize">
+                              {accountStatus.exchange}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div
+                            className={`text-sm font-medium ${
+                              accountStatus.status.isValid
+                                ? 'text-green-700 dark:text-green-400'
+                                : 'text-red-700 dark:text-red-400'
+                            }`}
+                          >
+                            {accountStatus.status.isValid ? 'Active' : 'Invalid'}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(accountStatus.status.lastChecked).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                      {accountStatus.status.errorMessage && (
+                        <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                          {accountStatus.status.errorMessage}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+              <div className="flex items-start space-x-2 mb-4">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <strong>Tip:</strong> API keys are checked automatically when fetching account data. Use this manual check to verify status without triggering data refresh.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowApiCheckModal(false)}
+                className="btn-primary w-full"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="md:flex md:items-center md:justify-between mb-8">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Manage Accounts
+            </h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Add, edit, and remove your trading accounts. API keys are encrypted and stored securely.
+            </p>
+          </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-3">
+          <button
+            onClick={handleCheckApiKeys}
+            disabled={accounts.length === 0}
+            className="btn-secondary flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Check APIs</span>
+          </button>
+
           <div className="relative group">
             <button
               onClick={async () => {
@@ -771,7 +891,7 @@ export const ManageAccounts = () => {
         if (!account) return null
 
         return (
-          <div key={`progress-${accountId}`} className="mb-6 bg-gray-800 border border-gray-700 rounded-lg p-4">
+          <div key={accountId} className="mb-6 bg-gray-800 border border-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-3">
                 <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
@@ -828,8 +948,8 @@ export const ManageAccounts = () => {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <div className="overflow-x-auto overflow-y-hidden">
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -876,8 +996,8 @@ export const ManageAccounts = () => {
                           {account.exchange}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <code className="text-sm font-mono text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
+                      <td className="px-6 py-4">
+                        <code className="text-sm font-mono text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md break-all inline-block max-w-xs">
                           {censorApiKey(account.apiKey)}
                         </code>
                       </td>
@@ -958,6 +1078,7 @@ export const ManageAccounts = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

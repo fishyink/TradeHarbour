@@ -8,7 +8,7 @@
 
 A modern, open-source **Electron desktop application** for monitoring multiple cryptocurrency accounts. Now with **103+ exchange support** via CCXT integration. Built with Electron, React, TypeScript, and Tailwind CSS.
 
-![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.6.9--BETA-orange.svg)
+![Trade Harbour](https://img.shields.io/badge/Trade%20Harbour-v1.7.0--BETA-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![GitHub](https://img.shields.io/badge/GitHub-fishyink%2Ftradeharbour-black.svg)
 ![Platform](https://img.shields.io/badge/Platform-Desktop%20Only-red.svg)
@@ -16,29 +16,24 @@ A modern, open-source **Electron desktop application** for monitoring multiple c
 
 ---
 
-## 🆕 What's New in v1.6.9 BETA
+## 🆕 What's New in v1.7.0 BETA
 
-### Enhanced Account Setup Experience
-This release focuses on improving the API key setup process with interactive, exchange-specific guidance:
+### Enhanced Assets Dashboard & API Key Management
+This release improves asset visibility and adds API key validation features:
 
 - **🌐 Supported Exchanges**: Bybit (fully tested)
 - **⚠️ Beta Exchanges**: Toobit, BloFin (limited testing)
 - **🧪 Experimental**: Binance, Coinbase, Kraken, OKX, and 100+ more
 
-### New Features & Improvements
-- **Split-Panel Account Setup**: New 50/50 layout with form fields on the left, instructions on the right
-- **Interactive Step Highlighting**: Steps automatically highlight based on which form field is focused
-- **Exchange-Specific Instructions**: Detailed, step-by-step guides for Bybit, BloFin, Toobit, and generic fallback
-- **External Link Support**: API management page links open in your default browser
-- **Updated Setup Guides**:
-  - Bybit: System-generated API keys, UNIFIED TRADING + ASSETS permissions, IP whitelist tips
-  - BloFin: CCXT application name requirement emphasized for proper functionality
-  - Improved security tips and best practices for each exchange
+### New Features
+- **Wallet Type Breakdown**: New "Group by account" view in Assets page showing separate wallet balances (Funding, Futures, Spot)
+- **API Key Status Checker**: New "Check APIs" button on Manage Accounts page to validate all API keys without refreshing data
+- **Enhanced BloFin Support**: Improved balance fetching for multiple wallet types (Funding + Futures)
 
 ### ⚠️ Beta Notice
 This is a **beta release** for testing multi-exchange functionality. Bybit remains the only fully supported exchange. Use other exchanges at your own risk and report any issues on Discord.
 
-**Upgrading from v1.6.8?** Your settings, accounts, and trading data will be preserved automatically. Simply extract the new version and copy your `data/` folder.
+**Upgrading from v1.6.9?** Your settings, accounts, and trading data will be preserved automatically. Simply extract the new version and copy your `data/` folder.
 
 ---
 

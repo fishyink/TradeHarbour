@@ -19,6 +19,7 @@ export interface UnifiedBalance {
   walletBalance: string
   usdValue: string
   bonus?: string
+  accountType?: string  // e.g., 'funding', 'spot', 'swap', 'futures'
 }
 
 export interface UnifiedPosition {
@@ -49,6 +50,8 @@ export interface UnifiedTrade {
   exchange: ExchangeType
   isMaker?: boolean
   feeRate?: string
+  // Raw order info from exchange (contains posId, posSide, pnl, etc. for BloFin)
+  info?: any
 }
 
 export interface UnifiedClosedPnL {

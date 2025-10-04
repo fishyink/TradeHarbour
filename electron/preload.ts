@@ -39,6 +39,14 @@ const electronAPI = {
     fetchClosedPnL: (account: any, limit?: number) => ipcRenderer.invoke('ccxt-fetch-closed-pnl', account, limit),
     fetchAccountData: (account: any, includeHistory?: boolean) => ipcRenderer.invoke('ccxt-fetch-account-data', account, includeHistory),
   },
+  api: {
+    validateApiKey: (account: any) => ipcRenderer.invoke('validate-api-key', account),
+  },
+  logs: {
+    getLogFilePath: () => ipcRenderer.invoke('get-log-file-path'),
+    openLogFile: () => ipcRenderer.invoke('open-log-file'),
+    clearLogs: () => ipcRenderer.invoke('clear-logs'),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
