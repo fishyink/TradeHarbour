@@ -123,6 +123,7 @@ async function createWindow(): Promise<void> {
   })
 
   mainWindow.once('ready-to-show', () => {
+    mainWindow?.maximize()
     mainWindow?.show()
 
     // Open dev tools in development OR if ELECTRON_DEBUG is set

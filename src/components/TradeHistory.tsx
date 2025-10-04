@@ -18,15 +18,54 @@ export const TradeHistory = () => {
     : (accountsData || [])
 
   const allTrades = useMemo(() => {
-    return filteredData
-      .flatMap(account =>
-        (account.closedPnL || []).map(trade => ({
-          ...trade,
-          accountName: account.name,
-          exchange: 'Bybit' // Default to Bybit for now, will support multiple exchanges
-        }))
-      )
-      .sort((a, b) => parseInt(b.updatedTime || b.createdTime) - parseInt(a.updatedTime || a.createdTime))
+    // Combine closed positions and open positions
+    const closedTrades = filteredData.flatMap(account =>
+      (account.closedPnL || []).map(trade => ({
+        ...trade,
+        accountName: account.name,
+        exchange: trade.exchange || account.exchange || 'Unknown'
+      }))
+    )
+
+    // Convert open positions to trade format
+    const openTrades = filteredData.flatMap(account =>
+      (account.positions || []).map(position => ({
+        symbol: position.symbol,
+        orderId: `open-${position.symbol}-${account.id}`,
+        side: position.side === 'long' ? 'Buy' : 'Sell',
+        qty: position.size,
+        orderPrice: position.entryPrice,
+        orderType: 'Market' as 'Market' | 'Limit',
+        execType: 'Trade',
+        closedSize: position.size,
+        cumEntryValue: (parseFloat(position.size) * parseFloat(position.entryPrice)).toString(),
+        avgEntryPrice: position.entryPrice,
+        cumExitValue: (parseFloat(position.size) * parseFloat(position.markPrice || position.entryPrice)).toString(),
+        avgExitPrice: '0', // Open positions have no exit price yet
+        closedPnl: position.unrealisedPnl,
+        fillCount: '1',
+        leverage: position.leverage || '1',
+        createdTime: position.createdTime || Date.now().toString(),
+        updatedTime: position.updatedTime || position.createdTime || Date.now().toString(),
+        exchange: position.exchange || account.exchange || 'Unknown',
+        accountName: account.name,
+      }))
+    )
+
+    // Sort with open positions at the top, then by timestamp
+    return [...closedTrades, ...openTrades]
+      .sort((a, b) => {
+        // Check if positions are open (avgExitPrice equals markPrice/entryPrice)
+        const aIsOpen = a.avgExitPrice === '0' || parseFloat(a.avgExitPrice) === parseFloat(a.avgEntryPrice)
+        const bIsOpen = b.avgExitPrice === '0' || parseFloat(b.avgExitPrice) === parseFloat(b.avgEntryPrice)
+
+        // Open positions always go first
+        if (aIsOpen && !bIsOpen) return -1
+        if (!aIsOpen && bIsOpen) return 1
+
+        // Otherwise sort by timestamp (most recent first)
+        return parseInt(b.updatedTime || b.createdTime) - parseInt(a.updatedTime || a.createdTime)
+      })
   }, [filteredData])
 
   const uniquePairs = useMemo(() => {
@@ -47,7 +86,13 @@ export const TradeHistory = () => {
     }
 
     if (selectedSide) {
-      filtered = filtered.filter(trade => trade.side === selectedSide)
+      filtered = filtered.filter(trade => {
+        const tradeSide = trade.side
+        // Normalize to match filter (Buy or Sell)
+        if (selectedSide === 'Buy' && (tradeSide === 'Buy' || tradeSide === 'buy')) return true
+        if (selectedSide === 'Sell' && (tradeSide === 'Sell' || tradeSide === 'sell')) return true
+        return false
+      })
     }
 
     if (selectedExchange) {

@@ -113,18 +113,22 @@ export const ClosedPositionsTable = ({ positions }: ClosedPositionsTableProps) =
                 position.updatedTime || position.createdTime
               )
 
+              // Check if position is still open
+              // A position is considered open if avgExitPrice is 0 or very close to avgEntryPrice with 0 duration
+              const isOpen = avgExitPrice === 0 || (avgExitPrice === avgEntryPrice && duration === '0s')
+
               return (
-                <tr key={`${position.orderId}-${index}`} className="hover:bg-gray-50 dark:hover:bg-dark-700/50">
+                <tr key={`${position.orderId}-${index}`} className={`hover:bg-gray-50 dark:hover:bg-dark-700/50 ${isOpen ? 'border-l-4 border-l-green-500 dark:border-l-green-400 bg-green-50/30 dark:bg-green-900/10' : ''}`}>
                   <td className="py-2 px-3">
                     <div className="flex items-center space-x-2">
                       <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center">
                         <span className="text-blue-600 dark:text-blue-400 text-xs font-bold">
-                          B
+                          {(position.exchange || 'B').charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div className="min-w-0">
                         <div className="font-medium text-gray-900 dark:text-white text-xs">
-                          Bybit
+                          {position.exchange || 'Bybit'}
                         </div>
                         <div className="text-xs text-muted truncate">
                           {position.accountName}
@@ -151,38 +155,56 @@ export const ClosedPositionsTable = ({ positions }: ClosedPositionsTableProps) =
                   </td>
 
                   <td className="py-2 px-3">
-                    <div className="min-w-0">
-                      <div className="font-mono text-sm text-gray-900 dark:text-white">
-                        ${avgEntryPrice.toFixed(2)}@
+                    {isOpen ? (
+                      <div className="min-w-0">
+                        <div className="font-mono text-sm text-gray-900 dark:text-white">
+                          ${avgEntryPrice.toFixed(2)}@
+                        </div>
                       </div>
-                      <div className="text-xs text-muted truncate">
-                        {formatTime(position.createdTime)}
+                    ) : (
+                      <div className="min-w-0">
+                        <div className="font-mono text-sm text-gray-900 dark:text-white">
+                          ${avgEntryPrice.toFixed(2)}@
+                        </div>
+                        <div className="text-xs text-muted truncate">
+                          {formatTime(position.createdTime)}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </td>
 
                   <td className="py-2 px-3 text-center">
-                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                      {duration}
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      isOpen
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                    }`}>
+                      {isOpen ? '⚡ Open' : duration}
                     </span>
                   </td>
 
                   <td className="py-2 px-3">
-                    <div className="min-w-0">
-                      <div className="font-mono text-sm text-gray-900 dark:text-white">
-                        ${avgExitPrice.toFixed(2)}@
+                    {isOpen ? (
+                      <div className="text-center">
+                        <span className="text-xs text-muted">—</span>
                       </div>
-                      <div className="text-xs text-muted truncate">
-                        {formatTime(position.updatedTime || position.createdTime)}
+                    ) : (
+                      <div className="min-w-0">
+                        <div className="font-mono text-sm text-gray-900 dark:text-white">
+                          ${avgExitPrice.toFixed(2)}@
+                        </div>
+                        <div className="text-xs text-muted truncate">
+                          {formatTime(position.updatedTime || position.createdTime)}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </td>
 
                   <td className="py-2 px-3 text-right">
                     <div className={`font-semibold text-sm ${
                       closedPnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
-                      {closedPnl >= 0 ? '+' : ''}${closedPnl.toFixed(2)}
+                      {closedPnl >= 0 ? '+' : ''}${Math.abs(closedPnl) < 0.01 && closedPnl !== 0 ? closedPnl.toFixed(4) : closedPnl.toFixed(2)}
                     </div>
                   </td>
                 </tr>

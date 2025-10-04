@@ -238,9 +238,14 @@ class CCXTAdapter implements ExchangeAPI {
       return positions
         .filter((pos: any) => pos.contracts && pos.contracts > 0) // Only open positions
         .map((pos: any) => {
-          // CCXT's pos.timestamp should be the position update time (in milliseconds)
-          // For position opened time, we use Date.now() as fallback since CCXT doesn't provide it reliably
-          const createdTime = pos.timestamp?.toString() || Date.now().toString()
+          // Try to get createdTime from raw API data (Bybit-specific)
+          // Bybit provides createdTime in milliseconds in the raw response
+          let createdTime = pos.timestamp?.toString() || Date.now().toString()
+
+          if (pos.info && pos.info.createdTime) {
+            // Bybit returns createdTime in milliseconds as a string
+            createdTime = pos.info.createdTime
+          }
 
           return {
             symbol: pos.symbol || '',
@@ -380,8 +385,8 @@ class CCXTAdapter implements ExchangeAPI {
         Object.entries(symbolTrades).forEach(([symbol, symbolTradeList]) => {
           const sortedTrades = symbolTradeList.sort((a, b) => parseInt(a.execTime) - parseInt(b.execTime))
 
-          let longPos = 0, longCost = 0
-          let shortPos = 0, shortCost = 0
+          let longPos = 0, longCost = 0, longOpenTime = ''
+          let shortPos = 0, shortCost = 0, shortOpenTime = ''
 
           sortedTrades.forEach(trade => {
             const qty = parseFloat(trade.execQty)
@@ -391,12 +396,16 @@ class CCXTAdapter implements ExchangeAPI {
             // Normalize side to lowercase for comparison
             const side = trade.side.toLowerCase()
 
+            this.safeLog(`BloFin: Processing trade ${symbol} ${side} qty:${qty} price:${price} fee:${fee}`)
+
             if (side === 'buy') {
               if (shortPos > 0) {
                 // Closing short
                 const closeQty = Math.min(qty, shortPos)
                 const avgCost = shortCost / shortPos
                 const pnl = (avgCost - price) * closeQty - fee
+
+                this.safeLog(`BloFin: Closing SHORT - ${symbol} qty:${closeQty} entry:${avgCost} exit:${price} fee:${fee} pnl:${pnl}`)
 
                 closedPnL.push({
                   symbol,
@@ -414,17 +423,19 @@ class CCXTAdapter implements ExchangeAPI {
                   closedPnl: pnl.toString(),
                   fillCount: '1',
                   leverage: '1',
-                  createdTime: trade.execTime,
+                  createdTime: shortOpenTime || trade.execTime,
                   updatedTime: trade.execTime,
                   exchange: account.exchange,
                 })
 
                 shortPos -= closeQty
                 shortCost = shortPos > 0 ? shortCost - (closeQty * avgCost) : 0
+                if (shortPos === 0) shortOpenTime = ''
               }
 
               const remaining = qty - Math.min(qty, shortPos > 0 ? shortPos : 0)
               if (remaining > 0) {
+                if (longPos === 0) longOpenTime = trade.execTime
                 longPos += remaining
                 longCost += remaining * price
               }
@@ -435,6 +446,8 @@ class CCXTAdapter implements ExchangeAPI {
                 const closeQty = Math.min(qty, longPos)
                 const avgCost = longCost / longPos
                 const pnl = (price - avgCost) * closeQty - fee
+
+                this.safeLog(`BloFin: Closing LONG - ${symbol} qty:${closeQty} entry:${avgCost} exit:${price} fee:${fee} pnl:${pnl}`)
 
                 closedPnL.push({
                   symbol,
@@ -452,17 +465,19 @@ class CCXTAdapter implements ExchangeAPI {
                   closedPnl: pnl.toString(),
                   fillCount: '1',
                   leverage: '1',
-                  createdTime: trade.execTime,
+                  createdTime: longOpenTime || trade.execTime,
                   updatedTime: trade.execTime,
                   exchange: account.exchange,
                 })
 
                 longPos -= closeQty
                 longCost = longPos > 0 ? longCost - (closeQty * avgCost) : 0
+                if (longPos === 0) longOpenTime = ''
               }
 
               const remaining = qty - Math.min(qty, longPos > 0 ? longPos : 0)
               if (remaining > 0) {
+                if (shortPos === 0) shortOpenTime = trade.execTime
                 shortPos += remaining
                 shortCost += remaining * price
               }
